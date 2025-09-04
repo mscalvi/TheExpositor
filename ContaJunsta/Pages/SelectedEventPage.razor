@@ -1,0 +1,697 @@
+﻿@page "/events/{id}"
+@using ContaJunsta.Models
+@using ContaJunsta.Services
+@inject NavigationManager Nav
+@inject DataService Data
+@inject CalculationService Calc
+@inject ExportService Export
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<main class="page-root">
+
+    <header class="page-header">
+        <h1 class="page-title">EVENTO</h1>
+        <p class="subtitle">
+            <strong>@eventName</strong> · @participants.Count participante(s)
+        </p>
+    </header>
+
+    @if (isClosed)
+    {
+        <div class="notice">Este evento está <strong>fechado</strong>. Não é possível adicionar ou excluir lançamentos.</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="error-box">@error</div>
+    }
+
+
+    @if (view == "main")
+    {
+        <!-- TELA PRINCIPAL: adicionar + lista -->
+        <section class="page-card">
+            <div class="field">
+                <label>Onde gastou?</label>
+                <input class="input" @bind="desc" @bind:event="oninput" disabled="@isClosed" placeholder="Mercado, Combustível, Empréstimos, Loteria..." />
+            </div>
+
+            <div class="field">
+                <label>Quanto foi?</label>
+                <input class="input" inputmode="decimal" @bind="valueStr" @bind:event="oninput" disabled="@isClosed"
+                       placeholder="0,00 (positivo = despesa; negativo = ganho)" />
+            </div>
+
+            <div class="field">
+                <label>Quem pagou?</label>
+                <select class="input" @bind="responsibleId" disabled="@isClosed">
+                    @foreach (var p in participants)
+                    {
+                        <option value="@p.Id">@p.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Quem divide?</label>
+                <div class="checklist">
+                    @foreach (var p in participants)
+                    {
+                        <label class="check-item">
+                            <input type="checkbox"
+                                   checked="@selectedIds.Contains(p.Id)"
+                                   disabled="@isClosed"
+                                   @onchange="(ChangeEventArgs e) => OnCheckChange(p.Id, e)" />
+                            <span>@p.Name</span>
+                        </label>
+                    }
+                </div>
+                @if (selectedIds.Count == 0)
+                {
+                    <small class="hint">Selecione ao menos 1 pessoa.</small>
+                }
+            </div>
+
+            <div class="actions">
+                <button class="home-btn" disabled="@(!CanAdd || isClosed)" @onclick="AddBillAsync">Adicionar Lançamento</button>
+            </div>
+
+            <!-- Lista de lançamentos reais -->
+            <div class="list-box">
+                <h2 class="h2">Lançamentos</h2>
+
+                @if (loadingBills)
+                {
+                    <div class="empty">Carregando…</div>
+                }
+                else if (bills.Count == 0)
+                {
+                    <div class="empty">Nenhum lançamento ainda.</div>
+                }
+                else
+                {
+                    <ul class="bills">
+                        @foreach (var b in bills)
+                        {
+                            <li>
+                                <div class="row">
+                                    <div>
+                                        <div class="bill-desc">@b.Description</div>
+                                        <div class="bill-meta">R$ @FormatCents(b.Cents) · Resp.: @NameOf(b.ResponsibleId)</div>
+                                    </div>
+
+                                    @if (!isClosed)
+                                    {
+                                        <button class="icon danger" title="Excluir lançamento"
+                                                @onclick="@(async () => await DeleteBillAsync(b.Id))">
+                                            ×
+                                        </button>
+                                    }
+                                </div>
+                                <div class="bill-meta small">Divisão: @string.Join(", ", b.ParticipantNames)</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+
+        <!-- Rodapé de ações da tela principal -->
+        <div class="actions" style="margin-top:16px;">
+            <button class="home-btn ghost" @onclick="ShowPreviewAsync">Conferir Parcial</button>
+            <button class="home-btn danger" @onclick="CloseEventAsync" disabled="@CloseDisabled" title="@CloseBtnTitle">Fechar Evento</button>
+            <button class="home-btn ghost" @onclick="GoHome">Voltar</button>
+        </div>
+    }
+    else if (view == "preview")
+    {
+        <!-- FECHAMENTO (prévia) -->
+        <section class="page-card preview-compact">
+            <h2 class="h2">Fechamento Parcial</h2>
+
+            @if (closeLoading)
+            {
+                <div class="empty">Calculando…</div>
+            }
+            else if (summaries.Count == 0)
+            {
+                <div class="empty">Sem lançamentos para calcular.</div>
+            }
+            else
+            {
+                <div class="summary-table">
+                    <div class="row head">
+                        <div>Pessoa</div><div>Pagou</div><div>Total</div><div>Deveria</div>
+                    </div>
+                    @foreach (var s in summaries)
+                    {
+                        <div class="row">
+                            <div>@ShortName(s.Name)</div>
+                            <div>R$ @FormatCents(s.Paid)</div>
+                            <div>R$ @FormatCents(s.Should)</div>
+                            <div class="@(s.Balance >= 0 ? "ok" : "warn")">R$ @FormatCents(s.Balance)</div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <h2 class="h2" style="margin-top:16px;">Transferências sugeridas</h2>
+            @if (closeLoading)
+            {
+                <div class="empty">Calculando…</div>
+            }
+            else if (transfers.Count == 0)
+            {
+                <div class="empty">Nenhum acerto necessário.</div>
+            }
+            else
+            {
+                <ul class="transfers">
+                    @foreach (var t in transfers)
+                    {
+                        <li>@ShortName(NameOf(t.FromId)) paga R$ @FormatCents(t.Cents) para @ShortName(NameOf(t.ToId))</li>
+                    }
+                </ul>
+            }
+
+            <div class="actions">
+                <button class="home-btn ghost" @onclick="BackToEvent">Voltar</button>
+            </div>
+        </section>
+    }
+    else
+    {
+        <!-- FECHAMENTO (evento fechado) -->
+        <section class="page-card">
+            <h2 class="h2">Resumo por pessoa</h2>
+
+            @if (closeLoading)
+            {
+                <div class="empty">Calculando…</div>
+            }
+            else if (summaries.Count == 0)
+            {
+                <div class="empty">Sem lançamentos para calcular.</div>
+            }
+            else
+            {
+                <div class="summary-table">
+                    <div class="row head">
+                        <div>Pessoa</div><div>Pagou</div><div>Total</div><div>Deveria</div>
+                    </div>
+                    @foreach (var s in summaries)
+                    {
+                        <div class="row">
+                            <div>@s.Name</div>
+                            <div>R$ @FormatCents(s.Paid)</div>
+                            <div>R$ @FormatCents(s.Should)</div>
+                            <div class="@(s.Balance >= 0 ? "ok" : "warn")">R$ @FormatCents(s.Balance)</div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <h2 class="h2" style="margin-top:16px;">Transferências sugeridas</h2>
+            @if (closeLoading)
+            {
+                <div class="empty">Calculando…</div>
+            }
+            else if (transfers.Count == 0)
+            {
+                <div class="empty">Nenhum acerto necessário.</div>
+            }
+            else
+            {
+                <ul class="transfers">
+                    @foreach (var t in transfers)
+                    {
+                        <li>@NameOf(t.FromId) paga R$ @FormatCents(t.Cents) para @NameOf(t.ToId)</li>
+                    }
+                </ul>
+            }
+
+            <div class="actions">
+                <button class="home-btn" @onclick="ExportCsvAsync" disabled="@closeLoading">Exportar CSV</button>
+                <button class="home-btn" @onclick="ExportTxtAsync" disabled="@closeLoading">Exportar TXT</button>
+                <button class="home-btn ghost" @onclick="BackToEvent">Voltar</button>
+            </div>
+        </section>
+    }
+
+</main>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+
+    // estado de tela: "main" (padrão), "preview" (parcial), "closed" (fechado)
+    string view = "main";
+    string eventName = "(carregando...)";
+    string error = "";
+    bool isClosed = false;
+
+    // participantes
+    record P(string Id, string Name);
+    List<P> participants = new();
+
+    // formulário
+    string desc = "";
+    string valueStr = "";
+    string responsibleId = "";
+    HashSet<string> selectedIds = new();
+
+    // listagem (view)
+    record BillView(string Id, string Description, int Cents, string ResponsibleId, List<string> ParticipantNames);
+    List<BillView> bills = new();
+    bool loadingBills = false;
+
+    // fechamento
+    bool closeLoading = false;
+    List<CalculationService.PersonSummary> summaries = new();
+    List<CalculationService.Transfer> transfers = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        fromHistory = QueryIs(new Uri(Nav.Uri), "from", "history");
+
+        error = "";
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Id))
+            {
+                error = "Id do evento ausente na rota.";
+                return;
+            }
+
+            // evento (nome + status)
+            var all = await Data.GetAllEventsAsync(false);
+            var ev = all.FirstOrDefault(e => e.Id == Id);
+            eventName = ev?.Name ?? "(sem nome)";
+            isClosed = (ev?.Status ?? "Open") != "Open";
+
+            // participantes
+            var people = await Data.GetPersonsByEventAsync(Id);
+            participants = people.Select(p => new P(p.Id, p.Name ?? "(sem nome)")).ToList();
+
+            // defaults do form
+            if (participants.Count > 0)
+            {
+                responsibleId = participants[0].Id;
+                selectedIds = new(participants.Select(p => p.Id));
+            }
+
+            await LoadBillsAsync();
+
+            if (isClosed)
+            {
+                view = "closed";
+                await RecomputeAsync();
+            }
+            else
+            {
+                view = "main";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = "Falha ao carregar o evento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    // carregar/exibir lançamentos
+    async Task LoadBillsAsync()
+    {
+        try
+        {
+            loadingBills = true;
+            if (string.IsNullOrWhiteSpace(Id)) return;
+
+            var raw = await Data.GetBillsByEventAsync(Id);
+            bills = raw.Select(b => new BillView(
+                b.Id ?? "",
+                b.Description ?? "",
+                b.Cents,
+                b.ResponsiblePersonId ?? "",
+                participants
+                  .Where(p => (b.ParticipantIds ?? new List<string>()).Contains(p.Id))
+                  .Select(p => p.Name)
+                  .ToList()
+            ))
+            .OrderBy(b => b.Description)
+            .ToList();
+        }
+        catch (Exception ex)
+        {
+            error = "Erro ao carregar lançamentos. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+        finally
+        {
+            loadingBills = false;
+            StateHasChanged();
+        }
+    }
+
+    // ações
+    bool CanAdd =>
+        !string.IsNullOrWhiteSpace(desc) &&
+        ParseCents(valueStr) != 0 &&
+        selectedIds.Count >= 1;
+
+    void OnCheckChange(string id, ChangeEventArgs e)
+    {
+        var v = e?.Value;
+        bool isChecked =
+            v is bool b ? b :
+            v is string s ? (s.Equals("true", StringComparison.OrdinalIgnoreCase) || s.Equals("on", StringComparison.OrdinalIgnoreCase))
+                          : false;
+
+        if (isChecked) selectedIds.Add(id);
+        else selectedIds.Remove(id);
+    }
+
+    async Task AddBillAsync()
+    {
+        try
+        {
+            error = "";
+            if (string.IsNullOrWhiteSpace(Id)) throw new InvalidOperationException("Evento inválido.");
+            var cents = ParseCents(valueStr);
+            if (cents == 0) throw new InvalidOperationException("Valor precisa ser diferente de zero.");
+            if (selectedIds.Count < 1) throw new InvalidOperationException("Selecione pelo menos 1 pessoa.");
+
+            var bill = new BillModel
+            {
+                EventId = Id!,
+                Description = (desc ?? "").Trim(),
+                Cents = cents,
+                ResponsiblePersonId = responsibleId ?? "",
+                ParticipantIds = selectedIds.ToList()
+            };
+            await Data.AddBillAsync(bill);
+
+            ResetForm();
+            await LoadBillsAsync();
+        }
+        catch (Exception ex)
+        {
+            error = "Não foi possível adicionar o lançamento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    async Task DeleteBillAsync(string billId)
+    {
+        try
+        {
+            if (!await JS.InvokeAsync<bool>("confirm", "Excluir este lançamento?")) return;
+            await Data.DeleteBillAsync(billId);
+            await LoadBillsAsync();
+            if (view != "main") await RecomputeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = "Não foi possível excluir o lançamento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    async Task ShowPreviewAsync()
+    {
+        view = "preview";
+        await RecomputeAsync();
+    }
+
+    async Task CloseEventAsync()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Id)) return;
+
+            var raw = await Data.GetBillsByEventAsync(Id);
+            if (raw.Count == 0)
+            {
+                if (!await JS.InvokeAsync<bool>("confirm", "Não há lançamentos. Fechar vai EXCLUIR o evento. Continuar?"))
+                    return;
+
+                await Data.DeleteEventCascadeAsync(Id);
+                // volta pra Home conforme pedido
+                Nav.NavigateTo("/");
+                return;
+            }
+
+            if (!await JS.InvokeAsync<bool>("confirm", "Fechar o evento? Você não poderá mais adicionar/excluir lançamentos."))
+                return;
+
+            await Data.CloseEventAsync(Id);
+            isClosed = true;
+
+            // mostra a área de fechamento com opções de export
+            view = "closed";
+            await RecomputeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = "Falha ao fechar o evento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    async Task RecomputeAsync()
+    {
+        try
+        {
+            closeLoading = true;
+            if (string.IsNullOrWhiteSpace(Id))
+            {
+                summaries.Clear();
+                transfers.Clear();
+                return;
+            }
+
+            var rawBills = await Data.GetBillsByEventAsync(Id);
+            var people = participants.Select(p => new CalculationService.PersonLite(p.Id, p.Name)).ToList();
+
+            var result = Calc.Compute(people, rawBills);
+            summaries = result.Summaries.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            transfers = result.Transfers;
+        }
+        finally
+        {
+            closeLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    void GoHome() => Nav.NavigateTo("/");
+
+    void BackToEvent() => view = "main";
+
+    async Task DeleteEventAsync()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Id)) return;
+
+            var ok = await JS.InvokeAsync<bool>(
+                "confirm",
+                "Tem certeza que deseja EXCLUIR este evento? Essa ação não pode ser desfeita."
+            );
+            if (!ok) return;
+
+            await Data.DeleteEventCascadeAsync(Id);
+            Nav.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            error = "Falha ao excluir o evento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    // helpers
+    string NameOf(string id) => participants.FirstOrDefault(p => p.Id == id)?.Name ?? id;
+
+    static string FormatCents(int cents) => (cents / 100.0).ToString("N2");
+
+    static int ParseCents(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return 0;
+
+        var str = s.Trim();
+        str = str.Replace("R$", "", StringComparison.OrdinalIgnoreCase)
+                 .Replace(" ", "");
+
+        bool hasComma = str.Contains(',');
+        bool hasDot = str.Contains('.');
+
+        if (hasComma && hasDot)
+        {
+            // "1.234,56" -> ponto milhar, vírgula decimal
+            str = str.Replace(".", "").Replace(',', '.');
+        }
+        else if (hasComma && !hasDot)
+        {
+            // "12,34" -> vírgula decimal
+            str = str.Replace(',', '.');
+        }
+
+        if (!double.TryParse(
+                str,
+                System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var d))
+            return 0;
+
+        return (int)Math.Round(d * 100.0, MidpointRounding.AwayFromZero);
+    }
+
+    static string ToPtBr(int cents) => (cents / 100.0).ToString("N2");
+
+    static string CsvEsc(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        var needQuotes = s.Contains(',') || s.Contains('"') || s.Contains('\n') || s.Contains('\r');
+        if (!needQuotes) return s;
+        return "\"" + s.Replace("\"", "\"\"") + "\"";
+    }
+
+    void ResetForm()
+    {
+        desc = "";
+        valueStr = "";
+
+        if (participants.Count > 0)
+        {
+            responsibleId = participants[0].Id;
+            selectedIds = new(participants.Select(p => p.Id));
+        }
+    }
+
+    bool CloseDisabled => closeLoading || isClosed;
+    string? CloseBtnTitle => isClosed ? "Evento já fechado" : (closeLoading ? "Calculando…" : null);
+
+    bool fromHistory = false;
+
+    static bool QueryIs(Uri uri, string key, string expected)
+    {
+        var q = uri.Query; // ?from=history&x=1
+        if (string.IsNullOrEmpty(q)) return false;
+        foreach (var part in q.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2 &&
+                string.Equals(kv[0], key, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(Uri.UnescapeDataString(kv[1]), expected, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    // Exportar TXT (resumo)
+    async Task ExportTxtAsync()
+    {
+        try
+        {
+            error = "";
+            if (string.IsNullOrWhiteSpace(Id)) { error = "Evento inválido."; return; }
+
+            await RecomputeAsync();
+
+            var rawBills = await Data.GetBillsByEventAsync(Id);
+            if (rawBills.Count == 0) { error = "Não há lançamentos para exportar."; return; }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Evento: {eventName}");
+            sb.AppendLine($"Exportado em: {DateTime.Now:dd/MM/yyyy HH:mm}");
+            sb.AppendLine(new string('-', 40));
+            sb.AppendLine("Resumo por pessoa (R$):");
+            sb.AppendLine("Nome; Pagou; Deveria; Saldo");
+
+            foreach (var s in summaries)
+                sb.AppendLine($"{s.Name}; {ToPtBr(s.Paid)}; {ToPtBr(s.Should)}; {ToPtBr(s.Balance)}");
+
+            sb.AppendLine();
+            sb.AppendLine("Transferências sugeridas:");
+            if (transfers.Count == 0) sb.AppendLine("Nenhuma.");
+            else
+                foreach (var t in transfers)
+                    sb.AppendLine($"{NameOf(t.FromId)} paga R$ {ToPtBr(t.Cents)} para {NameOf(t.ToId)}");
+
+            await Export.SaveTextAsync(Slug($"{eventName}-resumo.txt"), sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            error = "Falha ao exportar TXT. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    // Exportar CSV (lançamentos crus)
+    async Task ExportCsvAsync()
+    {
+        try
+        {
+            error = "";
+            if (string.IsNullOrWhiteSpace(Id)) { error = "Evento inválido."; return; }
+
+            var raw = await Data.GetBillsByEventAsync(Id);
+            if (raw.Count == 0) { error = "Não há lançamentos para exportar."; return; }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("data,descricao,responsavel,valor_centavos,participantes_divisao");
+
+            foreach (var b in raw)
+            {
+                var dt = b.CreatedAt ?? "";
+                var desc = CsvEsc(b.Description ?? "");
+                var resp = CsvEsc(NameOf(b.ResponsiblePersonId ?? ""));
+                var cents = b.Cents;
+
+                var names = participants
+                    .Where(p => (b.ParticipantIds ?? new List<string>()).Contains(p.Id))
+                    .Select(p => p.Name)
+                    .ToList();
+                var joined = CsvEsc(string.Join(" | ", names));
+
+                sb.AppendLine($"{dt},{desc},{resp},{cents},{joined}");
+            }
+
+            await Export.SaveTextAsync(Slug($"{eventName}-gastos.csv"), sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            error = "Falha ao exportar CSV. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    static string Slug(string s)
+    {
+        var bad = System.IO.Path.GetInvalidFileNameChars();
+        var clean = new string((s ?? "").Select(ch => bad.Contains(ch) ? '-' : ch).ToArray());
+        return string.IsNullOrWhiteSpace(clean) ? "export" : clean;
+    }
+
+    string ShortName(string? full)
+    {
+        var s = (full ?? "").Trim();
+        if (s.Length <= 9) return s; // se já é curto, mantém
+
+        var parts = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var first = parts.ElementAtOrDefault(0) ?? s;
+        var second = parts.ElementAtOrDefault(1);
+
+        if (!string.IsNullOrEmpty(second))
+        {
+            var f = first.Length <= 4 ? first : first.Substring(0, 4);
+            var sec = second.Length <= 2 ? second : second.Substring(0, 2);
+            return f + sec; // ex.: "MarcVi"
+        }
+        else
+        {
+            return first.Length <= 7 ? first : first.Substring(0, 7); // ex.: "Marcelo"
+        }
+    }
+
+}

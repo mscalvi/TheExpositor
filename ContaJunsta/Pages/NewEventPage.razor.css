@@ -1,0 +1,157 @@
+﻿/* --- base/consistência com SelectedEventPage --- */
+* {
+    box-sizing: border-box;
+}
+
+.page-root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+}
+
+.page-header {
+    text-align: center;
+    margin: 8px 0 12px 0;
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.page-root {
+    padding: 16px;
+    max-width: 100vw;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Larguras unificadas */
+.error-box,
+.page-card {
+    width: min(720px, 94vw);
+    margin: 0 auto;
+}
+
+.page-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Campos */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-weight: 600;
+}
+
+.hint {
+    color: #777;
+}
+
+.input,
+select.input {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,.15);
+    background: #fff;
+    appearance: auto; /* garante select padrão */
+}
+
+/* Linha com input + botão: input ocupa tudo, botão largura fixa */
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    gap: 8px;
+    align-items: center;
+}
+
+    .input-row .input {
+        min-width: 0;
+    }
+
+    .input-row .home-btn {
+        width: 120px;
+    }
+
+/* Lista de participantes */
+.participants {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+    .participants li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        border: 1px solid rgba(0,0,0,.12);
+        border-radius: 10px;
+        background: #fff;
+        overflow-wrap: anywhere;
+    }
+
+/* Inputs auxiliares */
+.participant-input {
+    min-width: 0;
+}
+
+/* Botões */
+.actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.home-btn {
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,.15);
+    background: #f0f3f6;
+    cursor: pointer;
+}
+
+    .home-btn.ghost {
+        background: transparent;
+    }
+
+.icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,.12);
+    background: #fff;
+    cursor: pointer;
+}
+
+    .icon.danger {
+        color: #922;
+        border-color: #f3bcbc;
+    }
+
+/* Remover largura própria do nome do evento para herdar 100% do card */
+.event-name {
+    width: 100%;
+}
+
+/* Responsivo extra (opcional) */
+@media (max-width: 480px) {
+    .input-row {
+        grid-template-columns: 1fr 110px;
+    }
+}

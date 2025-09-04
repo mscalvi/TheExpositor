@@ -1,0 +1,436 @@
+﻿.page-root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+}
+
+.page-header {
+    text-align: center;
+    margin: 8px 0 12px 0;
+}
+
+.page-title {
+    margin: 0 0 8px 0;
+    font-size: clamp(22px,5.5vw,38px);
+    letter-spacing: .08em;
+    font-weight: 900;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(0,0,0,.25), 0 2px 0 rgba(0,0,0,.18), 0 3px 6px rgba(0,0,0,.30);
+}
+
+.subtitle {
+    margin: 6px 0 0 0;
+    color: #666;
+}
+
+.notice {
+    width: min(720px,94vw);
+    margin: 8px auto 0 auto;
+    background: #fff8e5;
+    color: #6a4b00;
+    border: 1px solid #f5d08a;
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+}
+
+.error-box {
+    margin: 8px auto 0 auto;
+    width: min(720px,94vw);
+    background: #ffeaea;
+    color: #922;
+    border: 1px solid #f3bcbc;
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.tabbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    width: min(720px, 94vw);
+    margin: 10px auto 12px auto;
+    border-bottom: 1px solid rgba(0,0,0,.12);
+}
+
+.tab-btn {
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background: #f3f4f6;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+    .tab-btn.active {
+        background: #ffffff;
+        border-color: rgba(0,0,0,.12);
+        border-bottom-color: #ffffff;
+    }
+
+    .tab-btn.back {
+        background: #eef2f7;
+        color: #333;
+        border: 1px solid rgba(0,0,0,.10);
+    }
+
+        .tab-btn.back:hover {
+            filter: brightness(.98);
+        }
+
+.tab-spacer {
+    flex: 1 1 auto;
+}
+
+.page-card {
+    width: min(720px,94vw);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 10px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-weight: 600;
+}
+
+.hint {
+    color: #777;
+}
+
+.input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,.15);
+    background: #fff;
+}
+
+select.input {
+    appearance: auto;
+}
+
+.checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(0,0,0,.12);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.home-btn {
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,.15);
+    background: #f0f3f6;
+    cursor: pointer;
+}
+
+    .home-btn:hover:not([disabled]) {
+        filter: brightness(.98);
+    }
+
+    .home-btn:active:not([disabled]) {
+        transform: translateY(1px);
+    }
+
+    .home-btn[disabled] {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+
+    .home-btn.ghost {
+        background: transparent;
+    }
+
+    .home-btn.danger {
+        background: #fde8e8;
+        border-color: #f3bcbc;
+        color: #8a1f1f;
+    }
+
+.list-box {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(0,0,0,.15);
+}
+
+.h2 {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+}
+
+.empty {
+    padding: 14px;
+    text-align: center;
+    border: 1px dashed rgba(0,0,0,.2);
+    border-radius: 12px;
+    background: #fafbfc;
+    color: #666;
+}
+
+.bills {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+    .bills li {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 1px solid rgba(0,0,0,.12);
+        border-radius: 10px;
+        background: #fff;
+    }
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.bill-desc {
+    font-weight: 600;
+}
+
+.bill-meta {
+    color: #555;
+    font-size: 14px;
+}
+
+    .bill-meta.small {
+        color: #777;
+        font-size: 13px;
+    }
+
+.icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,.12);
+    background: #fff;
+    cursor: pointer;
+}
+
+    .icon.danger {
+        color: #922;
+        border-color: #f3bcbc;
+    }
+
+.summary-table {
+    width: min(720px,94vw);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 120px 120px 120px;
+    gap: 6px 10px;
+    align-items: center;
+}
+
+    .summary-table .row {
+        display: contents;
+    }
+
+    .summary-table .head > div {
+        font-weight: 700;
+        border-bottom: 1px solid rgba(0,0,0,.2);
+        padding-bottom: 6px;
+    }
+
+    .summary-table .row > div {
+        padding: 6px 0;
+    }
+
+    .summary-table .ok {
+        color: #185c37;
+    }
+
+    .summary-table .warn {
+        color: #8a1f1f;
+    }
+
+.transfers {
+    list-style: disc inside;
+    padding: 0;
+    margin: 8px 0 0 0;
+}
+
+/* --- Responsividade e proteção contra scroll horizontal --- */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.page-root {
+    padding: 16px;
+    overflow-x: hidden;
+}
+
+.page-card {
+    width: min(720px, 100vw);
+}
+
+/* Inputs e selects nunca passam da largura */
+.input, select.input {
+    max-width: 100%;
+}
+
+/* Botões podem quebrar linha se precisar (evita estourar) */
+.actions {
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Nomes/descrições longos não estouram o layout */
+.bill-desc, .bill-meta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Grid das checkboxes mais elástica em telas estreitas */
+.checklist {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+/* Tabela de resumo: colunas numéricas encolhem bem em telas pequenas */
+.summary-table {
+    grid-template-columns: 1fr minmax(84px, 22vw) minmax(84px, 22vw) minmax(84px, 22vw);
+}
+
+/* Quebra de layout para celulares bem estreitos */
+@media (max-width: 480px) {
+    .page-header {
+        margin-top: 2vh;
+    }
+
+    .page-title {
+        font-size: clamp(20px, 7vw, 32px);
+    }
+
+    .page-card {
+        padding: 6px;
+        gap: 10px;
+    }
+
+    .tabbar {
+        gap: 6px;
+    }
+
+    .tab-btn {
+        padding: 7px 10px;
+    }
+
+    /* Reduz levemente paddings dos itens */
+    .bills li {
+        padding: 8px 10px;
+    }
+
+    /* Números podem quebrar linha se for preciso */
+    .summary-table .row > div {
+        white-space: normal;
+    }
+}
+
+/* ---- Checkboxes mais compactas e com mais espaço para texto ---- */
+.checklist {
+    /* dá um pouco mais de largura mínima para caber nomes curtos sem quebrar tanto */
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 6px;
+}
+
+.check-item {
+    /* grade: 1 col estreita pro checkbox + 1fr pro texto */
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px; /* um pouco mais denso */
+}
+
+    /* tira margens nativas e limita tamanho visual do checkbox */
+    .check-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        /* opcional: ligeiro scale se o user-agent renderizar grande */
+        transform: scale(0.95);
+        transform-origin: left center;
+        /* opcional: cor do check (browsers modernos) */
+        accent-color: #334155;
+    }
+
+    /* texto ocupa o restante e pode quebrar */
+    .check-item span {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.2;
+    }
+
+/* em telas muito estreitas, deixe a coluna mínima um pouco menor */
+@media (max-width: 480px) {
+    .checklist {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .check-item {
+        gap: 6px;
+        padding: 5px 7px;
+        grid-template-columns: 16px 1fr;
+    }
+
+        .check-item input[type="checkbox"] {
+            transform: scale(0.9);
+        }
+}
+
+/* ----- Modo compacto para o fechamento parcial ----- */
+.preview-compact .summary-table {
+    font-size: 13px; /* texto menor */
+    grid-template-columns: 1fr minmax(72px, 20vw) minmax(72px, 20vw) minmax(72px, 20vw);
+    gap: 4px 8px;
+}
+
+    .preview-compact .summary-table .row > div {
+        padding: 4px 0;
+    }
+
+.preview-compact .h2 {
+    margin-bottom: 6px;
+}
+
+.preview-compact .transfers {
+    font-size: 14px;
+}

@@ -1,0 +1,125 @@
+﻿@page "/events/new"
+@inject NavigationManager Nav
+@inject ContaJunsta.Services.DataService Data
+
+<main class="page-root">
+    <header class="page-header">
+        <h1 class="page-title">NOVO EVENTO</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="error-box">@error</div>
+    }
+
+    <section class="page-card">
+        <div class="field">
+            <label>Nome do evento</label>
+            <input class="input event-name"
+                   @bind="name" @bind:event="oninput"
+                   placeholder="Ex.: Viagem 2026" />
+            @if (string.IsNullOrWhiteSpace(name))
+            {
+                <small class="hint">Obrigatório.</small>
+            }
+        </div>
+
+        <div class="field">
+            <label>Participantes</label>
+
+            <div class="input-row">
+                <input class="input participant-input"
+                       @bind="participantInput"
+                       placeholder="Nome do participante" />
+                <button class="home-btn add-btn" @onclick="AddParticipant">Adicionar</button>
+            </div>
+
+            <ul class="participants">
+                @foreach (var p in participants)
+                {
+                    <li>
+                        <span>@p</span>
+                        <button class="icon danger" title="Remover" @onclick="() => RemoveParticipant(p)">×</button>
+                    </li>
+                }
+            </ul>
+
+            @if (participants.Count < 2)
+            {
+                <small class="hint">Nenhum participante adicionado ainda. Adicione pelo menos 2.</small>
+            }
+        </div>
+
+
+        <div class="actions">
+            <button class="home-btn ghost" @onclick="Cancel">Voltar</button>
+            <button class="home-btn" @onclick="SaveAsync" disabled="@(!CanSave)">Salvar</button>
+        </div>
+    </section>
+</main>
+
+@code {
+    string name = "";
+    List<string> participants = new();
+    string participantInput = "";
+    string error = "";
+
+    bool CanSave => !string.IsNullOrWhiteSpace(name?.Trim()) && participants.Count >= 2;
+
+    void AddParticipant()
+    {
+        error = "";
+        var raw = (participantInput ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(raw)) return;
+
+        // remove reticências ocasionais e divide por vírgulas (também tolera ; e quebras de linha)
+        raw = raw.Replace("…", "");
+
+        var names = raw
+            .Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(n => n.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var n in names)
+        {
+            if (!participants.Any(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase)))
+                participants.Add(n);
+        }
+
+        participantInput = "";
+    }
+
+    void RemoveParticipant(string n)
+    {
+        error = "";
+        participants.Remove(n);
+    }
+
+    void Cancel()
+    {
+        error = "";
+        name = "";
+        participants.Clear();
+        participantInput = "";
+        Nav.NavigateTo("/");
+    }
+
+    async Task SaveAsync()
+    {
+        try
+        {
+            error = "";
+            if (!CanSave) { error = "Preencha o nome e adicione pelo menos 2 participantes."; return; }
+
+            // cria evento + pessoas e navega para a página do evento
+            var id = await Data.CreateEventAsync(name.Trim(), participants);
+            Nav.NavigateTo($"/events/{id}");
+        }
+        catch (Exception ex)
+        {
+            error = "Não foi possível criar o evento. " + ex.Message;
+            Console.Error.WriteLine(ex);
+        }
+    }
+}

@@ -1,0 +1,40 @@
+﻿@page "/events"
+@inject NavigationManager Nav
+@inject ContaJunsta.Services.DataService Data
+
+<main class="events-root">
+    <h1 class="page-title">EVENTOS</h1>
+
+    @if (events.Count == 0)
+    {
+        <div class="empty">Nenhum evento aberto. Crie um novo.</div>
+    }
+    else
+    {
+        <ul class="events-list">
+            @foreach (var e in events)
+            {
+                <li>
+                    <button class="events-btn" @onclick="@(() => OpenEvent(e.Id))">@e.Name</button>
+                </li>
+            }
+        </ul>
+    }
+
+    <div class="actions">
+        <button class="home-btn ghost" @onclick="GoHome">Voltar</button>
+    </div>
+</main>
+
+@code {
+    private List<(string Id, string Name)> events = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var list = await Data.GetAllEventsAsync(onlyOpen: true);
+        events = list.Select(e => (e.Id, e.Name)).ToList();
+    }
+
+    void OpenEvent(string id) => Nav.NavigateTo($"/events/{id}");
+    void GoHome() => Nav.NavigateTo("/");
+}

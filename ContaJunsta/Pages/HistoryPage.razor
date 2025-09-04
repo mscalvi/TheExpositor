@@ -1,0 +1,54 @@
+﻿@page "/history"
+@using ContaJunsta.Models
+@inject NavigationManager Nav
+@inject ContaJunsta.Services.DataService Data
+
+<main class="hist-root">
+    <h1 class="page-title">HISTÓRICO</h1>
+
+    @if (closed is null || closed.Count == 0)
+    {
+        <div class="empty">Nenhum evento fechado ainda.</div>
+    }
+    else
+    {
+        <div class="hist-box">
+            <ul class="hist-list">
+                @foreach (var e in closed)
+                {
+                    <li class="hist-item">
+                        <a class="hist-btn" href="@($"/events/{e.Id}?from=history")">@e.Name</a>
+                        <span class="muted">@ClosedDate(e)</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="actions">
+        <button class="home-btn ghost" @onclick="GoHome">Voltar</button>
+    </div>
+</main>
+
+@code {
+    private List<EventModel> closed = new();
+
+    void GoHome() => Nav.NavigateTo("/");
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await Data.GetAllEventsAsync(onlyOpen: false);
+        closed = all
+          .Where(e => (e.Status ?? "Open") != "Open")
+          .OrderByDescending(e => e.ClosedAt)
+          .ToList();
+    }
+
+    string ClosedDate(EventModel e)
+    {
+        if (string.IsNullOrWhiteSpace(e.ClosedAt)) return "";
+        return DateTime.TryParse(e.ClosedAt, out var dt)
+          ? dt.ToLocalTime().ToString("dd/MM/yyyy")
+          : "";
+    }
+}

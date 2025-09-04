@@ -1,0 +1,18 @@
+﻿@page "/"
+@inject NavigationManager Nav
+
+<main class="home-root">
+    <h1 class="home-title">CONTAJUNSTA</h1>
+
+    <div class="home-actions">
+        <button class="home-btn" @onclick="GoToEvents">Eventos</button>
+        <button class="home-btn" @onclick="GoToNew">Novo Evento</button>
+        <button class="home-btn" @onclick="GoToHistory">Histórico</button>
+    </div>
+</main>
+
+@code {
+    void GoToEvents() => Nav.NavigateTo("/events");
+    void GoToNew() => Nav.NavigateTo("/events/new");
+    void GoToHistory() => Nav.NavigateTo("/history");
+}

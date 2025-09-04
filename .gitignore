@@ -1,0 +1,58 @@
+# Gerais
+*.log
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store
+
+# Visual Studio / .NET (C#)
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+*.pdb
+*.ilk
+*.cache
+*.vsp*
+*.psess
+# NuGet antigo
+**/packages/
+# Saídas de publicação
+*.nupkg
+
+# C / C++
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.so
+*.a
+*.out
+*.idb
+*.tlog
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+ENV/
+.mypy_cache/
+.pytest_cache/
+
+# Ferramentas comuns da web (caso use)
+node_modules/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
