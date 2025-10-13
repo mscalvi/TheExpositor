@@ -1,0 +1,92 @@
+﻿/* ===========================
+   PlannerPage — estilos locais
+   =========================== */
+
+.planner {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: max(var(--space-4), var(--safe-top)) var(--space-4) max(var(--space-4), var(--safe-bottom));
+    overflow-x: hidden;
+}
+
+/* Cabeçalho da página */
+.planner-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+    .planner-header .brand-title {
+        margin: 0;
+    }
+
+/* Card da vitrine */
+.showcase {
+    margin-bottom: 12px;
+}
+
+/* Stack: nome em cima, descrição embaixo, ambos centralizados */
+.showcase-stack {
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+    .showcase-stack .name {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 6px;
+    }
+
+    .showcase-stack .desc {
+        color: var(--text);
+        opacity: .9;
+    }
+
+/* KPIs em 3 colunas (Fase, Metas, Concluído) */
+.kpis.three {
+    grid-template-columns: repeat(3, minmax(140px,1fr));
+}
+
+@media (max-width: 820px) {
+    .kpis.three {
+        grid-template-columns: repeat(3, minmax(120px,1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .kpis.three {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Acordeões (mais respiro à esquerda) */
+.accordion details > summary {
+    padding: 12px 20px;
+}
+
+.accordion details > div {
+    padding: 12px 20px 16px;
+}
+
+.accordion .list .item {
+    padding: 12px 20px;
+}
+
+    .accordion .list .item .name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+/* Botão “Novo Projeto” centralizado */
+.header-create {
+    display: block;
+    margin: 12px auto 0;
+    min-width: 220px;
+}
+
+/* Placeholders */
+.placeholder {
+    color: var(--text-muted);
+}

@@ -1,0 +1,67 @@
+﻿@page "/plans/new"
+
+@using DeltaDaily.Components.Models
+@using DeltaDaily.Components.Data
+@inject DeltaDaily.Components.Services.IProjectStoreService ProjectStore
+@inject NavigationManager Nav
+
+<section class="new-plan page">
+    <header class="page-header">
+        <h1>Novo Projeto</h1>
+    </header>
+
+    <section class="card">
+        <h2>Informações Básicas</h2>
+        <div class="form-grid">
+            <label>
+                <span>Nome</span>
+                <InputText @bind-Value="Project.Nome" />
+            </label>
+
+            <label>
+                <span>Resumo de uma linha</span>
+                <InputText @bind-Value="Project.Resumo" />
+            </label>
+
+            <label>
+                <span>Criação</span>
+                <input type="date" value="@Project.DataCriacao?.ToString("yyyy-MM-dd")" disabled />
+            </label>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="actions">
+            <button type="button" class="btn primary" @onclick="Criar">Criar</button>
+            <button type="button" class="btn danger" @onclick="Cancelar">Cancelar</button>
+        </div>
+    </section>
+</section>
+
+@code {
+    private ProjectModel Project = new();
+
+    protected override void OnInitialized()
+    {
+        Project.DataCriacao ??= DateTime.Now;
+        Project.DataAlteracao ??= Project.DataCriacao;
+        Project.Fase = ProjectData.Phase.Feira;
+    }
+
+    private async Task Criar()
+    {
+        if (string.IsNullOrWhiteSpace(Project.Nome) || string.IsNullOrWhiteSpace(Project.Resumo))
+            return;
+
+        Project.DataAlteracao = DateTime.Now;
+        Project.Fase = ProjectData.Phase.Feira;
+
+        if (string.IsNullOrWhiteSpace(Project.Id))
+            Project.Id = Guid.NewGuid().ToString("N");
+
+        await ProjectStore.SaveAsync(Project);
+        Nav.NavigateTo($"/plans/{Project.Id}");
+    }
+
+    private void Cancelar() => Nav.NavigateTo("/plans");
+}

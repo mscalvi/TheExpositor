@@ -1,0 +1,21 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Routing
+
+<header class="topbar">
+    <div class="center-bar">
+        <a class="brand" href="/">
+            <img class="logo" src="Resources/logoSD.png"/>
+            <span>DeltaDaily</span>
+        </a>
+
+        <nav class="nav">
+            <NavLink href="/calendar" Match="NavLinkMatch.Prefix">Calendário</NavLink>
+            <NavLink href="/resume" Match="NavLinkMatch.Prefix">Resumo</NavLink>
+            <NavLink href="/plans" Match="NavLinkMatch.Prefix">Projetos</NavLink>
+        </nav>
+    </div>
+</header>
+
+<main class="content">
+    @Body
+</main>

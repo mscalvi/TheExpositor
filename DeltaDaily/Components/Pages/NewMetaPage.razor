@@ -1,0 +1,297 @@
+﻿@page "/plans/{ProjectId}/meta/new"
+
+@using System.ComponentModel.DataAnnotations
+@using DeltaDaily.Components.Models
+@inject DeltaDaily.Components.Services.IProjectStoreService Store
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<section class="page new-meta">
+    @if (notFound)
+    {
+        <div class="card">
+            <h2>Projeto não encontrado</h2>
+            <button class="btn" @onclick="Voltar">Voltar</button>
+        </div>
+    }
+    else if (Project is null)
+    {
+        <div class="card"><p>Carregando…</p></div>
+    }
+    else
+    {
+        <header class="page-header">
+            <h1>Nova Meta</h1>
+            <div class="muted">Projeto: <strong>@Project.Nome</strong></div>
+        </header>
+
+        <!-- Bloco 1 - Informações Básicas -->
+        <section class="card">
+            <h2>Informações Básicas</h2>
+            <div class="form-grid">
+                <label class="span-row">
+                    <span>Nome</span>
+                    <InputText @bind-Value="Meta.Nome" class="input" />
+                </label>
+
+                <label class="span-row">
+                    <span>Objetivo</span>
+                    <InputTextArea @bind-Value="Meta.Objetivo" rows="3" class="input" />
+                </label>
+
+                <label>
+                    <span>Criação</span>
+                    <input type="date" value="@Meta.DataCriacao.ToString("yyyy-MM-dd")" disabled />
+                </label>
+            </div>
+        </section>
+
+        <!-- Bloco 2 - Tasks (adicionar/editar/excluir) -->
+        <section class="card">
+            <div class="section-title">
+                <h2>Tasks</h2>
+                @if (!criandoTask)
+                {
+                    <button class="btn primary small" @onclick="ComecarCriarTask">+ Adicionar Task</button>
+                }
+            </div>
+
+            @if (criandoTask)
+            {
+                <div class="form-grid" style="margin-top:10px;">
+                    <label class="span-row">
+                        <span>Nome da Task</span>
+                        <InputText @bind-Value="novaTaskNome" class="input" />
+                    </label>
+                </div>
+                <div class="actions" style="margin-top:8px;">
+                    <button class="btn primary" @onclick="SalvarNovaTask" disabled="@string.IsNullOrWhiteSpace(novaTaskNome)">Salvar</button>
+                    <button class="btn danger" @onclick="CancelarCriacaoTask">Cancelar</button>
+                </div>
+            }
+
+            @if ((Meta.Tasks?.Count ?? 0) == 0)
+            {
+                <p class="muted" style="margin-top:12px;">Nenhuma task nesta meta.</p>
+            }
+            else
+            {
+                <ul class="list" style="margin-top:12px;">
+                    @foreach (var t in Meta.Tasks.ToList())
+                    {
+                        <li class="item">
+                            @if (ReferenceEquals(editandoTask, t))
+                            {
+                                <!-- Edição inline -->
+                                <div class="form-grid span-row">
+                                    <label class="span-row">
+                                        <span>Nome</span>
+                                        <InputText @bind-Value="edNome" class="input" />
+                                    </label>
+
+                                    <label class="span-row">
+                                        <span>Comentário (opcional)</span>
+                                        <InputText @bind-Value="edComentario" class="input" />
+                                    </label>
+
+                                    <label>
+                                        <input type="checkbox" @bind="edCompleta" />
+                                        <span>Completa</span>
+                                    </label>
+                                </div>
+                                <div class="actions under" style="margin-top:8px;">
+                                    <button class="btn small primary" @onclick="SalvarEdicaoTask">Salvar</button>
+                                    <button class="btn small danger" @onclick="CancelarEdicaoTask">Cancelar</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- Leitura: linha 1 = Nome — Criada em · Comentário -->
+                                <div class="task-line">
+                                    <span class="name">@t.Nome</span>
+                                    <span class="sep">—</span>
+                                    <span class="muted">Criada em: @t.Criacao.ToString("dd/MM/yy")</span>
+                                    @if (!string.IsNullOrWhiteSpace(t.Comentario))
+                                    {
+                                        <span class="muted">· Comentário: @t.Comentario</span>
+                                    }
+                                    @if (t.Completa == true)
+                                    {
+                                        <span class="muted">· Concluída: @t.Finalizada?.ToString("dd/MM/yy")</span>
+                                    }
+                                </div>
+
+                                <!-- Linha 2 = botões -->
+                                <div class="actions under">
+                                    <button class="btn small primary" @onclick="@(() => EditarTask(t))">Editar</button>
+                                    <button class="btn small danger" @onclick="async () => await ExcluirTask(t)">Excluir</button>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+
+        <!-- Ações -->
+        <section class="card">
+            <div class="actions">
+                <button class="btn primary"
+                        @onclick="CriarMeta"
+                        disabled="@string.IsNullOrWhiteSpace(Meta.Nome)">
+                    Criar Meta
+                </button>
+                <button class="btn danger" @onclick="Voltar">Cancelar</button>
+            </div>
+        </section>
+    }
+</section>
+
+@code {
+    [Parameter] public string ProjectId { get; set; } = default!;
+
+    private ProjectModel? Project;
+    private bool notFound;
+
+    private MetaModel Meta = new()
+    {
+        Nome = string.Empty,
+        Objetivo = string.Empty,
+        DataCriacao = DateTime.Now,
+        TarefasCriacao = 0,
+        TarefasTardias = 0,
+        TarefasCompletas = 0,
+        TarefasTotais = 0,
+        Ativa = false,
+        Completa = false,
+        Tasks = new List<TaskModel>()
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ProjectId))
+        {
+            notFound = true;
+            return;
+        }
+
+        Project = await Store.LoadAsync(ProjectId);
+        notFound = Project is null;
+    }
+
+    private void Voltar() => Nav.NavigateTo($"/plans/{ProjectId}");
+
+    // --- criar/editar/excluir Task (como ideias) ---
+    private bool criandoTask = false;
+    private string novaTaskNome = string.Empty;
+
+    private TaskModel? editandoTask;
+    private string edNome = string.Empty;
+    private string? edComentario;
+    private bool edCompleta;
+
+    private void ComecarCriarTask()
+    {
+        criandoTask = true;
+        novaTaskNome = string.Empty;
+    }
+
+    private void CancelarCriacaoTask()
+    {
+        criandoTask = false;
+        novaTaskNome = string.Empty;
+    }
+
+    private void EditarTask(TaskModel t)
+    {
+        editandoTask = t;
+        edNome = t.Nome;
+        edComentario = t.Comentario;
+        edCompleta = t.Completa == true;
+    }
+
+    private void CancelarEdicaoTask()
+    {
+        editandoTask = null;
+        edNome = string.Empty;
+        edComentario = null;
+        edCompleta = false;
+    }
+
+    private void SalvarNovaTask()
+    {
+        Meta.Tasks ??= new List<TaskModel>();
+        Meta.Tasks.Add(new TaskModel
+        {
+            Nome = novaTaskNome.Trim(),
+            Criacao = DateOnly.FromDateTime(DateTime.Today),
+            Completa = false,
+            Finalizada = null
+        });
+
+        criandoTask = false;
+        novaTaskNome = string.Empty;
+    }
+
+    private void SalvarEdicaoTask()
+    {
+        if (editandoTask is null) return;
+
+        editandoTask.Nome = edNome.Trim();
+        editandoTask.Comentario = string.IsNullOrWhiteSpace(edComentario) ? null : edComentario.Trim();
+
+        if (edCompleta)
+        {
+            editandoTask.Completa = true;
+            editandoTask.Finalizada ??= DateOnly.FromDateTime(DateTime.Today);
+        }
+        else
+        {
+            editandoTask.Completa = false;
+            editandoTask.Finalizada = null;
+        }
+
+        editandoTask = null;
+        edNome = string.Empty;
+        edComentario = null;
+        edCompleta = false;
+    }
+
+    private async Task ExcluirTask(TaskModel t)
+    {
+        if (Meta.Tasks is null) return;
+
+        // Confirmação opcional (você já injeta IJSRuntime como JS)
+        var ok = await JS.InvokeAsync<bool>("confirm", $"Excluir a task \"{t.Nome}\"?");
+        if (!ok) return;
+
+        // Se estiver editando justamente essa task, cancela edição antes
+        if (ReferenceEquals(editandoTask, t))
+            CancelarEdicaoTask();
+
+        Meta.Tasks.Remove(t);
+    }
+
+
+    // --- criar Meta e salvar no projeto ---
+    private async Task CriarMeta()
+    {
+        if (Project is null) return;
+
+        // KPIs básicos calculados agora
+        Meta.TarefasTotais = Meta.Tasks?.Count ?? 0;
+        Meta.TarefasCompletas = Meta.Tasks?.Count(t => t.Completa == true) ?? 0;
+
+        // (Se quiser, TarefasCriacao poderia ser igual ao total criado no momento da criação)
+        Meta.TarefasCriacao = Meta.TarefasTotais;
+
+        Project.Metas ??= new List<MetaModel>();
+        Project.Metas.Add(Meta);
+
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+
+        Nav.NavigateTo($"/plans/{ProjectId}");
+    }
+}

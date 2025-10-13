@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+		
+		<GameDir>$(ProjectDir)wwwroot\game\</GameDir>
+		<ImagesDir>$(ProjectDir)wwwroot\images\</ImagesDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.19" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.19" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="wwwroot\game\" />
+		<Folder Include="wwwroot\images\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Update="wwwroot\default_logo.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<Content Update="wwwroot\favicon.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<Content Update="wwwroot\icon-192.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<Content Update="wwwroot\icon-512.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+
+		<!-- Pasta IMAGES inteira -->
+		<Content Update="wwwroot\images\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+
+		<!-- Pasta GAME inteira (json, imagens, etc.) -->
+		<Content Update="wwwroot\game\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	
+	<!-- ===== Versão automática do jogo (cache-busting) ===== -->
+	<!-- Gera wwwroot/game/version.txt com timestamp UTC após BUILD -->
+	<Target Name="WriteGameVersionOnBuild" AfterTargets="Build">
+		<PropertyGroup>
+			<GameVersion>$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</GameVersion>
+		</PropertyGroup>
+		<Message Text="Game version (Build): $(GameVersion)" Importance="High" />
+		<MakeDir Directories="$(GameDir)" />
+		<WriteLinesToFile File="$(GameDir)version.txt" Lines="$(GameVersion)" Overwrite="true" />
+	</Target>
+
+	<!-- Gera wwwroot/game/version.txt na pasta publicada após PUBLISH -->
+	<Target Name="WriteGameVersionOnPublish" AfterTargets="Publish">
+		<PropertyGroup>
+			<GameVersion>$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</GameVersion>
+			<PublishGameDir>$(PublishDir)wwwroot\game\</PublishGameDir>
+		</PropertyGroup>
+		<Message Text="Game version (Publish): $(GameVersion)" Importance="High" />
+		<MakeDir Directories="$(PublishGameDir)" />
+		<WriteLinesToFile File="$(PublishGameDir)version.txt" Lines="$(GameVersion)" Overwrite="true" />
+	</Target>
+</Project>

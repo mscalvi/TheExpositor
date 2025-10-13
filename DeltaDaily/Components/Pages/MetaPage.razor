@@ -1,0 +1,294 @@
+﻿@page "/plans/{ProjectId}/meta/{MetaName}"
+
+@using DeltaDaily.Components.Models
+@inject DeltaDaily.Components.Services.IProjectStoreService Store
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<section class="page meta">
+    @if (NotFound)
+    {
+        <div class="card">
+            <h2>Meta não encontrada</h2>
+            <button class="btn" @onclick="VoltarProjeto">Voltar ao Projeto</button>
+        </div>
+    }
+    else if (Meta is null)
+    {
+        <div class="card">
+            <p>Carregando…</p>
+        </div>
+    }
+    else
+    {
+        <!-- Cabeçalho -->
+        <header class="page-header">
+            <h1>@Meta.Nome</h1>
+            <div class="muted">
+                Criada em @Meta.DataCriacao.ToString("dd/MM/yy")
+                @if (Meta.DataFechamento.HasValue)
+                {
+                    <text> · Fechada em @Meta.DataFechamento.Value.ToString("dd/MM/yy")</text>
+                }
+            </div>
+            <div class="goal">
+                <span class="label">Objetivo</span>
+                <div class="value">@Meta.Objetivo</div>
+            </div>
+        </header>
+
+        <!-- Dados gerais -->
+        <section class="card">
+            <h2>Dados</h2>
+            <div class="form-grid">
+                <div>
+                    <span class="label">Ativa</span>
+                    <div class="value">@(Meta.Ativa ? "Sim" : "Não")</div>
+                </div>
+                <div>
+                    <span class="label">Completa</span>
+                    <div class="value">@(Meta.Completa ? "Sim" : "Não")</div>
+                </div>
+                <div>
+                    <span class="label">Tarefas na Criação</span>
+                    <div class="value">@Meta.TarefasCriacao</div>
+                </div>
+                <div>
+                    <span class="label">Tarefas Extras</span>
+                    <div class="value">@Meta.TarefasTardias</div>
+                </div>
+                <div>
+                    <span class="label">Tarefas Completas</span>
+                    <div class="value">@Meta.TarefasCompletas</div>
+                </div>
+                <div>
+                    <span class="label">Tarefas Totais</span>
+                    <div class="value">@Meta.TarefasTotais</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tasks -->
+        <section class="card">
+            <div class="section-title">
+                <h2>Tasks</h2>
+                @if (!criandoTask)
+                {
+                    <button class="btn small primary" @onclick="ComecarCriarTask">+ Adicionar Task</button>
+                }
+            </div>
+
+            @if (criandoTask)
+            {
+                <div class="form-grid" style="margin-top:10px;">
+                    <label class="span-row">
+                        <span>Nome da Task</span>
+                        <InputText @bind-Value="novaTaskNome" class="input" />
+                    </label>
+                </div>
+                <div class="actions" style="margin-top:8px;">
+                    <button class="btn small primary" @onclick="SalvarNovaTask" disabled="@string.IsNullOrWhiteSpace(novaTaskNome)">Salvar</button>
+                    <button class="btn small danger" @onclick="CancelarCriacaoTask">Cancelar</button>
+                </div>
+            }
+
+            @if ((Meta.Tasks?.Count ?? 0) == 0)
+            {
+                <p class="muted" style="margin-top:12px;">Nenhuma task nesta meta.</p>
+            }
+            else
+            {
+                <ul class="list" style="margin-top:12px;">
+                    @foreach (var t in Meta.Tasks.ToList())
+                    {
+                        <li class="item">
+                            <!-- Linha 1: Nome grande -->
+                            <div class="name">@t.Nome</div>
+
+                            <!-- Linha 2: infos empilhadas -->
+                            <div class="facts">
+                                <div class="muted">Criada: @t.Criacao.ToString("dd/MM/yy")</div>
+                                @if (t.Completa == true)
+                                {
+                                    <div class="muted">Concluída: @t.Finalizada?.ToString("dd/MM/yy")</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(t.Comentario))
+                                {
+                                    <div class="muted">Comentário: @t.Comentario</div>
+                                }
+                            </div>
+
+                            @if (ReferenceEquals(commentingTask, t))
+                            {
+                                <!-- Editor de comentário -->
+                                <div class="form-grid span-row" style="margin-top:8px;">
+                                    <label class="span-row">
+                                        <span>Comentário</span>
+                                        <InputTextArea @bind-Value="commentText" rows="2" class="input" />
+                                    </label>
+                                </div>
+                                <div class="actions under">
+                                    <button class="btn small primary" @onclick="SalvarComentario">Salvar</button>
+                                    <button class="btn small danger"  @onclick="CancelarComentario">Cancelar</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- Ações por baixo -->
+                                <div class="actions under">
+                                    @if (t.Completa == false)
+                                    {
+                                        <button class="btn small primary" @onclick="@(() => CompletarTask(t))">Completar</button>
+                                    }
+                                    <button class="btn small primary" @onclick="@(() => ComentarTask(t))">Comentar</button>
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="card">
+            <div class="actions center">
+                <button class="btn primary" @onclick="VoltarProjeto">Voltar ao Projeto</button>
+            </div>
+        </section>
+    }
+</section>
+
+@code {
+    [Parameter] public string ProjectId { get; set; } = default!;
+    [Parameter] public string MetaName { get; set; } = default!;
+
+    private ProjectModel? Project;
+    private MetaModel? Meta;
+    private bool NotFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Project = await Store.LoadAsync(ProjectId);
+        if (Project is null || string.IsNullOrWhiteSpace(MetaName))
+        {
+            NotFound = true;
+            return;
+        }
+
+        Meta = Project.Metas?
+            .FirstOrDefault(m => string.Equals(m.Nome, MetaName, StringComparison.OrdinalIgnoreCase));
+
+        NotFound = Meta is null;
+        if (!NotFound) AtualizarKpisEMarcaConclusao();
+    }
+
+    private void VoltarProjeto() => Nav.NavigateTo($"/plans/{ProjectId}");
+
+    // --- criar/editar/comentar/fechar Task ---
+    private bool criandoTask = false;
+    private string novaTaskNome = string.Empty;
+
+    private TaskModel? commentingTask;
+    private string? commentText;
+
+    private void ComecarCriarTask()
+    {
+        criandoTask = true;
+        novaTaskNome = string.Empty;
+    }
+
+    private void CancelarCriacaoTask()
+    {
+        criandoTask = false;
+        novaTaskNome = string.Empty;
+    }
+
+    private async Task SalvarNovaTask()
+    {
+        if (Meta is null || Project is null) return;
+
+        Meta.Tasks ??= new List<TaskModel>();
+        Meta.Tasks.Add(new TaskModel
+        {
+            Nome = novaTaskNome.Trim(),
+            Criacao = DateOnly.FromDateTime(DateTime.Today),
+            Completa = false,
+            Finalizada = null
+        });
+
+        criandoTask = false;
+        novaTaskNome = string.Empty;
+
+        AtualizarKpisEMarcaConclusao();
+        await SalvarProjetoAsync();
+    }
+
+    private async Task CompletarTask(TaskModel t)
+    {
+        if (Meta is null || Project is null) return;
+
+        t.Completa = true;
+        t.Finalizada ??= DateOnly.FromDateTime(DateTime.Today);
+
+        AtualizarKpisEMarcaConclusao();
+        await SalvarProjetoAsync();
+    }
+
+    private void ComentarTask(TaskModel t)
+    {
+        commentingTask = t;
+        commentText = t.Comentario ?? string.Empty;
+    }
+
+    private async Task SalvarComentario()
+    {
+        if (Meta is null || Project is null || commentingTask is null) return;
+
+        var text = (commentText ?? string.Empty).Trim();
+        commentingTask.Comentario = string.IsNullOrEmpty(text) ? null : text;
+
+        commentingTask = null;
+        commentText = null;
+
+        await SalvarProjetoAsync();
+    }
+
+    private void CancelarComentario()
+    {
+        commentingTask = null;
+        commentText = null;
+    }
+
+    // --- KPIs e conclusão automática ---
+    private void AtualizarKpisEMarcaConclusao()
+    {
+        if (Meta is null) return;
+
+        var tasks = Meta.Tasks ?? new List<TaskModel>();
+        Meta.TarefasTotais    = tasks.Count;
+        Meta.TarefasCompletas = tasks.Count(t => t.Completa == true);
+
+        // extras = (totais - na criação), com piso 0
+        Meta.TarefasTardias   = Math.Max(0, Meta.TarefasTotais - Meta.TarefasCriacao);
+
+        var abertas = Meta.TarefasTotais - Meta.TarefasCompletas;
+
+        if (Meta.TarefasTotais > 0 && abertas == 0)
+        {
+            Meta.Completa = true;
+            Meta.DataFechamento ??= DateOnly.FromDateTime(DateTime.Today);
+        }
+        else
+        {
+            Meta.Completa = false;
+            Meta.DataFechamento = null;
+        }
+    }
+
+    private async Task SalvarProjetoAsync()
+    {
+        if (Project is null) return;
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+        StateHasChanged();
+    }
+}

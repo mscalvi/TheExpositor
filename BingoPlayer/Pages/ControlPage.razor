@@ -1,0 +1,320 @@
+﻿@page "/"
+
+@inject BingoPlayer.Services.PackageService Package
+@inject BingoPlayer.Services.PlayService Play
+@inject IJSRuntime JS
+
+<div class="control-wrap">
+    @if (loading)
+    {
+        <header class="app-title">Carregando jogo…</header>
+    }
+    else if (!string.IsNullOrEmpty(error))
+    {
+        <header class="app-title">Erro ao carregar</header>
+        <p>@error</p>
+    }
+    else if (Package.Game is null)
+    {
+        <header class="app-title">Nenhum jogo encontrado</header>
+    }
+    else
+    {
+        <!-- Título: Nome do conjunto + Título do jogo -->
+        <header class="app-bar">
+            <div class="app-brand">
+                <img src="default_logo.png" alt="logo" class="brand-logo" />
+                <span><strong>BingoPlayer</strong></span>
+            </div>
+
+            <div class="app-game">
+                @if (!string.IsNullOrWhiteSpace(Package.Game.GameName))
+                {
+                    <div class="game-name">@Package.Game.GameName</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Package.Game.GameTitle))
+                {
+                    <div class="game-title">@Package.Game.GameTitle</div>
+                }
+            </div>
+
+        <!-- Informações do jogo (sem tema e sem capa) -->
+            <section class="info-grid">
+                <div class="info-card">
+                    <h3>Cartelas</h3>
+                    <p class="info-value"><strong>@Package.Game.GameQuant</strong> cartelas - Tamanho: @Package.Game.GameSize×@Package.Game.GameSize</p>
+                </div>
+                <div class="info-card">
+                    <h3>Fase</h3>
+                    <div class="radio-row">
+                        <label>
+                            <input type="radio" name="fase" value="1"
+                                   checked="@(bingoPhase == 1)"
+                                   @onchange="() => bingoPhase = 1" /> Quina
+                        </label>
+                        <label style="margin-left:12px">
+                            <input type="radio" name="fase" value="2"
+                                   checked="@(bingoPhase == 2)"
+                                   @onchange="() => bingoPhase = 2" /> Cartela Cheia
+                        </label>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <section class="buttons-row">
+                        <button class="btn" @onclick="StartGame" disabled="@started">Começar</button>
+                        <button class="btn" @onclick="ResetGame" disabled="@(!started && string.IsNullOrEmpty(lastResult))">Reiniciar</button>
+                        <button class="btn" @onclick="ShowBingo" disabled="@(!started && string.IsNullOrEmpty(lastResult))">Bingo</button>
+                        <button class="btn" @onclick="OpenStage">Ligar Projetor</button>
+                    </section>
+                </div>
+            </section>
+        </header>
+
+        @if (Package.Game.GameSize == 5)
+        {
+            <!-- 5×5: colunas rotuladas pelo Header; numeração sequencial total -->
+            <section class="play-area">
+                <div class="columns">
+                    @{
+                        int seq = 1; // contador global
+                        for (int col = 0; col < 5; col++)
+                        {
+                            var label = FiveHeaders[col];
+                            var list = ColumnList5(col);
+                            <div class="col">
+                                <h4>@label</h4>
+                                <div class="chips-row">
+                                    @foreach (var el in list)
+                                    {
+                                        var displayNumber = seq;      // número mostrado no botão
+                                        var elementId = el.Id;        // id real do elemento
+                                            <button class="btn id-btn @(Play.DrawnElements.Contains(elementId) ? "on" : null)"
+                                                    title="@el.CardName"
+                                                    disabled="@(!started)"
+                                                    @onclick="() => OnElementClick(elementId, displayNumber)">
+                                                @displayNumber
+                                            </button>
+                                        seq++;
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <aside class="results">
+                    <h4>Últimos Resultados</h4>
+                    <div class="last-result">@lastResult
+                        @if (!string.IsNullOrEmpty(lastImageSrc))
+                        {
+                            <div class="last-image">
+                                <img src="@lastImageSrc" alt="preview last"
+                                     style="max-width:260px; max-height:140px; object-fit:contain; background:#f4f4f4" />
+                            </div>
+                        }
+                    </div>
+                    <div class="results-list">@resultsList</div>
+                </aside>
+            </section>
+        }
+        else if (Package.Game.GameSize == 4)
+        {
+            <!-- 4×4: uma única área com todos os elementos numerados em sequência -->
+            <section class="play-area">
+                <div class="columns">
+                    <div class="col">
+                        <h4>@(VisibleHeader4x4())</h4>
+                        <div class="chips-row" style="gap:10px; display:grid; grid-template-columns:repeat(8, minmax(60px,1fr));">
+                            @{
+                                var all = Package.Game.AllElements; // todos elementos do jogo
+                                for (int i = 0; i < all.Count; i++)
+                                {
+                                    var el = all[i];
+                                    var n = i + 1;
+                                    var elementId = el.Id;
+                                    <button class="btn id-btn @(Play.DrawnElements.Contains(elementId) ? "on" : null)"
+                                            title="@el.CardName"
+                                            disabled="@(!started)"
+                                            @onclick="() => OnElementClick(elementId, n)">
+                                        @n
+                                    </button>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="results">
+                    <h4>Últimos Resultados</h4>
+                    <div class="last-result">
+                        @lastResult
+                        @if (!string.IsNullOrEmpty(lastImageSrc))
+                        {
+                            <div class="last-image">
+                                <img src="@lastImageSrc" alt="preview last"
+                                     style="max-width:260px; max-height:140px; object-fit:contain; background:#f4f4f4" />
+                            </div>
+                        }
+                    </div>
+                    <div class="results-list">@resultsList</div>
+                </aside>
+            </section>
+        }
+    }
+    <div class="help-card">
+        <section class="buttons-row">
+            <button class="btn" @onclick="DownloadAndInstall">Baixar Offline</button>
+            <button class="btn" disabled>Manual e FAQ</button>
+        </section>
+    </div>
+</div>
+
+@code {
+    private bool loading = true;
+    private string? error;
+
+    private string[] FiveHeaders = new[] { "B", "I", "N", "G", "O" }; // fallback
+    private string VisibleHeader4x4()
+        => string.Join("", (Package.Game?.GameHeader ?? "")
+                .Where(char.IsLetter)
+                .Select(c => char.ToUpperInvariant(c))
+                .Take(4));
+
+    // estado
+    private bool started = false;
+    private int bingoPhase = 1; // 1=Quina, 2=Cheia
+    private string? lastResult;
+    private string? resultsList;
+    private string? lastImageSrc;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Package.LoadAsync();
+            lastImageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName);
+            lastResult = "Jogo Pausado";
+            BuildHeadersFor5x5();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void BuildHeadersFor5x5()
+    {
+        var header = Package.Game?.GameHeader ?? "";
+        var letters = header
+            .Where(char.IsLetter)
+            .Select(c => c.ToString().ToUpperInvariant())
+            .ToList();
+
+        if (Package.Game?.GameSize == 5 && letters.Count >= 5)
+            FiveHeaders = letters.Take(5).ToArray();
+        else
+            FiveHeaders = new[] { "B", "I", "N", "G", "O" };
+    }
+
+    // Fonte de dados das 5 colunas (ordem fixa B, I, N, G, O); só o rótulo visual muda pelo header
+    private List<BingoPlayer.Models.ElementModel> ColumnList5(int index) => index switch
+    {
+        0 => Package.Game!.BElements,
+        1 => Package.Game!.IElements,
+        2 => Package.Game!.NElements,
+        3 => Package.Game!.GElements,
+        4 => Package.Game!.OElements,
+        _ => new List<BingoPlayer.Models.ElementModel>()
+    };
+
+    // ====== LÓGICA ======
+    private async Task StartGame()
+    {
+        started = true;
+        lastResult = "Jogo Pausado";
+        lastImageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName);
+        resultsList = null;
+        await JS.InvokeVoidAsync("stageSync.send", "cover", null);
+    }
+
+    private async Task ResetGame()
+    {
+        Play.ResetGame();
+        started = false;
+        lastResult = "Jogo Pausado";
+        lastImageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName);
+        resultsList = null;
+        await JS.InvokeVoidAsync("stageSync.send", "cover", null);
+    }
+
+    private async Task ShowBingo()
+    {
+        Play.RequestShowCover();
+        lastResult = "Jogo Pausado (Capa exibida)";
+        lastImageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName);
+        resultsList = null;
+        await JS.InvokeVoidAsync("stageSync.send", "cover", null);
+    }
+
+    private async Task OnElementClick(int elementId, int shownNumber)
+    {
+        // Alterna sorteado
+        Play.ToggleElement(elementId);
+        Play.ShowElement(elementId);
+        await JS.InvokeVoidAsync("stageSync.send", "element", elementId);
+
+        // Quais cartelas contém esse elemento
+        var chosenCards = Play.CheckCards(elementId);
+
+        // Verifica bingo conforme fase selecionada
+        var winners = Play.CheckBingo(chosenCards, bingoPhase, elementId);
+
+        // ùltimo Resultado
+        var el = Package.Game.AllElements.FirstOrDefault(x => x.Id == elementId);
+        lastResult = $"{shownNumber}: {el?.CardName ?? "—"}";
+        lastImageSrc = !string.IsNullOrWhiteSpace(el?.ImageName)
+            ? BingoPlayer.Services.PackageService.ResolveImageUrl(el!.ImageName)
+            : null;
+
+        resultsList = winners.Count > 0
+            ? $"BINGO! Cartelas vencedoras: {string.Join(", ", winners)}"
+            : "Sem bingo!";
+
+        StateHasChanged();
+    }
+
+    private async Task OpenStage() => await JS.InvokeVoidAsync("open", "stage", "_blank");
+
+    private async Task DownloadAndInstall()
+    {
+        // monte a lista de arquivos do jogo
+        var urls = new List<string> { "game/game.json", "game/elements.json" };
+
+        if (!string.IsNullOrWhiteSpace(Package.CoverImageName))
+            urls.Add(BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName));
+
+        foreach (var el in Package.Game.AllElements)
+        {
+            var u = BingoPlayer.Services.PackageService.ResolveImageUrl(el.ImageName);
+            if (!string.IsNullOrWhiteSpace(u)) urls.Add(u);
+        }
+
+        var outcome = await JS.InvokeAsync<string>("pwa.installAndCache", urls.Distinct().ToArray());
+
+        // feedback simples na UI
+        resultsList = outcome switch
+        {
+            "installed" => $"App instalado e disponível offline ({urls.Count} arquivos).",
+            "ios" => "No iPhone/iPad: toque em Compartilhar → Adicionar à Tela de Início.",
+            "dismissed" => $"Instalação cancelada. Ainda assim, disponível offline ({urls.Count} arquivos).",
+            "unavailable" => $"Instalação não suportada aqui. Disponível offline via favorito/atalho ({urls.Count} arquivos).",
+            _ => $"Disponível offline ({urls.Count} arquivos)."
+        };
+    }
+
+
+}

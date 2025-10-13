@@ -1,0 +1,372 @@
+﻿@page "/plans"
+
+@inject NavigationManager Nav
+@inject DeltaDaily.Components.Services.IProjectStoreService Store
+@inject DeltaDaily.Components.Services.IDayStoreService DayStore
+@inject IJSRuntime JS
+@using DeltaDaily.Components.Data
+@using DeltaDaily.Components.Models
+
+<section class="planner">
+    <!-- A Vitrine (projeto ativo) -->
+    <section class="card showcase">
+        <h2 class="card-title">Projeto em Foco</h2>
+
+        @if (Active is null)
+        {
+            <div class="showcase-stack">
+                <div class="name value placeholder">Nenhum projeto ativo</div>
+                <div class="desc value placeholder">—</div>
+            </div>
+
+            <div class="kpis three">
+                <div class="field">
+                    <span class="label">Fase</span>
+                    <div class="value placeholder">—</div>
+                </div>
+                <div class="field">
+                    <span class="label">Metas</span>
+                    <div class="value placeholder">—</div>
+                </div>
+                <div class="field">
+                    <span class="label">Concluído</span>
+                    <div class="value placeholder">—</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="showcase-stack">
+                <div class="name value">@Active.Nome</div>
+                <div class="desc value">@Active.Resumo</div>
+            </div>
+
+            <!-- Horas do mês (dedicadas/paralelas) -->
+            <div class="kpis" style="margin-top:8px;">
+                <div class="field">
+                    <span class="label">Horas Dedicadas</span>
+                    <div class="value">@HM(FocusMinDedicadas + FocusMinExtras)</div>
+                </div>
+                <div class="field">
+                    <span class="label">Horas Paralelas</span>
+                    <div class="value">@HM(FocusMinParalelas)</div>
+                </div>
+            </div>
+
+            <!-- Fase/Metas/Concluído -->
+            <div class="kpis three">
+                <div class="field">
+                    <span class="label">Fase</span>
+                    <div class="value">@PhaseTitle(Active.Fase)</div>
+                </div>
+                <div class="field">
+                    <span class="label">Metas</span>
+                    <div class="value">@((Active.Metas?.Count ?? 0))</div>
+                </div>
+                <div class="field">
+                    <span class="label">Concluído</span>
+                    <div class="value">
+                        @{
+                            if (ActiveMetaProgress is null)
+                            {
+                                @("-")
+                            }
+                            else
+                            {
+                                var (done, total) = ActiveMetaProgress.Value;
+                                var pct = total == 0 ? 0 : (int)Math.Round(done * 100.0 / total);
+                                @($"{done}/{total} · {pct}%")
+                            }
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            @* ===== Tabela da Meta Ativa ===== *@
+            @if (ActiveMeta is not null)
+            {
+                <div class="active-meta-head">
+                    <h4 class="active-meta-name">@ActiveMeta.Nome</h4>
+                    @if (!string.IsNullOrWhiteSpace(ActiveMeta.Objetivo))
+                    {
+                        <p class="active-meta-desc">@ActiveMeta.Objetivo</p>
+                    }
+                </div>
+
+                <div class="table-wrap" style="margin-top:8px;">
+                    <table class="table meta-table">
+                        <thead>
+                            <tr>
+                                <th>Tarefa</th>
+                                <th>Criada</th>
+                                <th>Concluída</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if ((ActiveMeta.Tasks?.Count ?? 0) == 0)
+                            {
+                                <tr>
+                                    <td colspan="3" class="muted">Sem tasks nesta meta.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var t in ActiveMeta.Tasks)
+                                {
+                                    var isFinishing = ReferenceEquals(FinishingTask, t);
+
+                                    <tr>
+                                        <td class="name">
+                                            <div class="name-scroller">@t.Nome</div>
+                                            @if (!string.IsNullOrWhiteSpace(t.Comentario))
+                                            {
+                                                <div class="muted small mt-1">Comentário: @t.Comentario</div>
+                                            }
+
+                                            @* editor inline do comentário (ocupa a mesma célula para manter tudo compacto) *@
+                                            @if (isFinishing)
+                                            {
+                                                <div class="mt-2">
+                                                    <label class="span-row">
+                                                        <span class="label" style="margin-bottom:4px;">Comentário (opcional)</span>
+                                                        <InputText @bind-Value="FinishingComment" class="input" />
+                                                    </label>
+                                                    <div class="actions mt-2">
+                                                        <button class="btn small primary" @onclick="ConfirmFinishAsync">Salvar & Concluir</button>
+                                                        <button class="btn small danger" @onclick="CancelFinish">Cancelar</button>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>@t.Criacao.ToString("dd/MM/yy")</td>
+                                        <td>
+                                            @if (t.Completa == true)
+                                            {
+                                                @t.Finalizada?.ToString("dd/MM/yy")
+                                            }
+                                            else
+                                            {
+                                                @if (!isFinishing)
+                                                {
+                                                    <button class="btn small primary"
+                                                            @onclick="() => StartFinishWithComment(t)">
+                                                        Concluir + comentar
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="muted">Editando…</span>
+                                                }
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="center mt-2">
+                <button type="button" class="btn primary small" @onclick="@(() => Open(Active))">
+                    Abrir
+                </button>
+            </div>
+        }
+    </section>
+
+    <!-- Listas por fase -->
+    <section class="card showcase">
+        <header class="planner-header">
+            <h1 class="brand-title">A Sala dos Projetos</h1>
+        </header>
+
+        @foreach (var kv in Groups)
+        {
+            var fase = kv.Key;
+            var items = kv.Value;
+
+            <section class="accordion">
+                <details>
+                    <summary>
+                        @PhaseTitle(fase)
+                        <span class="badge">@items.Count</span>
+                    </summary>
+
+                    @if (items.Count == 0)
+                    {
+                        <p class="muted center">Nenhum projeto aqui.</p>
+                    }
+                    else
+                    {
+                        <ul class="list">
+                            @foreach (var p in items)
+                            {
+                                <li class="item">
+                                    <span class="name">@p.Nome</span>
+                                    <button type="button" class="btn primary small" @onclick="@(() => Open(p))">Abrir</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </details>
+            </section>
+        }
+
+        <div>
+            <button type="button" class="btn primary header-create" @onclick="NewProject">
+                Novo Projeto
+            </button>
+        </div>
+    </section>
+</section>
+
+@code {
+    private ProjectModel? Active;
+    private Dictionary<ProjectData.Phase, List<ProjectModel>> Groups = new();
+    private int FocusMinDedicadas, FocusMinParalelas, FocusMinExtras;
+
+    // Meta ativa calculada
+    private MetaModel? ActiveMeta => Active?.Metas?.FirstOrDefault(m => m.Ativa);
+
+    // Estado do editor inline de conclusão/comentário
+    private TaskModel? FinishingTask;
+    private string FinishingComment = string.Empty;
+
+    private static string HM(int mins) => $"{mins / 60:00}:{mins % 60:00}";
+
+    private async Task CarregarHorasDoFocoAsync()
+    {
+        FocusMinDedicadas = FocusMinParalelas = FocusMinExtras = 0;
+        if (Active is null || string.IsNullOrWhiteSpace(Active.Id)) return;
+
+        var hoje = DateTime.Today;
+        var ini = new DateTime(hoje.Year, hoje.Month, 1);
+        var diasNoMes = DateTime.DaysInMonth(hoje.Year, hoje.Month);
+
+        var loads = Enumerable.Range(0, diasNoMes)
+            .Select(i => DayStore.LoadAsync(ini.AddDays(i)));
+
+        var days = await Task.WhenAll(loads);
+
+        foreach (var d in days)
+        {
+            foreach (var w in d.Trabalhos ?? new List<WorkModel>())
+            {
+                if (!string.Equals(w.ProjetoId, Active.Id, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var mins = MinutesFromDurLocal(w.Duracao);
+
+                switch (w.Tipo)
+                {
+                    case WorkData.WorkType.Dedicada:
+                        FocusMinDedicadas += mins; break;
+                    case WorkData.WorkType.Paralela:
+                        FocusMinParalelas += mins; break;
+                    case WorkData.WorkType.Extra:
+                        FocusMinExtras += mins; break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        static int MinutesFromDurLocal(object? dur)
+        {
+            if (dur is null) return 0;
+            if (dur is TimeOnly t) return t.Hour * 60 + t.Minute;
+            if (dur is string s && TimeSpan.TryParse(s, out var ts)) return (int)ts.TotalMinutes;
+            return 0;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await Store.ListAllAsync();
+
+        Active = all.FirstOrDefault(p => p.Ativo);
+
+        Groups = Enum.GetValues<ProjectData.Phase>()
+                     .ToDictionary(f => f, _ => new List<ProjectModel>());
+
+        foreach (var p in all)
+        {
+            if (Active != null && p.Id == Active.Id) continue;
+            Groups[p.Fase].Add(p);
+        }
+
+        foreach (var k in Groups.Keys.ToList())
+            Groups[k] = Groups[k].OrderBy(p => p.Nome).ToList();
+
+        await CarregarHorasDoFocoAsync();
+    }
+
+    private static string PhaseTitle(ProjectData.Phase f) => f switch
+    {
+        ProjectData.Phase.Feira => "Feira",
+        ProjectData.Phase.Laboratório => "Laboratório",
+        ProjectData.Phase.Oficina => "Oficina",
+        ProjectData.Phase.Loja => "Loja",
+        _ => f.ToString()
+    };
+
+    private void Open(ProjectModel p) => Nav.NavigateTo($"/plans/{p.Id}");
+    private void NewProject() => Nav.NavigateTo("/plans/new");
+
+    private void AbrirMeta(MetaModel m)
+    {
+        if (Active is null) return;
+        var slug = Uri.EscapeDataString(m.Nome ?? string.Empty);
+        Nav.NavigateTo($"/plans/{Active.Id}/meta/{slug}");
+    }
+
+    // Fluxo inline: iniciar, cancelar, confirmar
+    private void StartFinishWithComment(TaskModel t)
+    {
+        FinishingTask = t;
+        FinishingComment = t.Comentario ?? string.Empty;
+    }
+
+    private void CancelFinish()
+    {
+        FinishingTask = null;
+        FinishingComment = string.Empty;
+    }
+
+    private async Task ConfirmFinishAsync()
+    {
+        if (FinishingTask is null || Active is null) return;
+
+        FinishingTask.Completa = true;
+        FinishingTask.Finalizada = DateOnly.FromDateTime(DateTime.Today);
+        FinishingTask.Comentario = string.IsNullOrWhiteSpace(FinishingComment)
+            ? FinishingTask.Comentario
+            : FinishingComment.Trim();
+
+        // salva o projeto
+        Active.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Active);
+
+        // limpa estado do editor
+        FinishingTask = null;
+        FinishingComment = string.Empty;
+
+        StateHasChanged();
+    }
+
+    // Progresso da meta ativa: (done, total) ou null se não houver meta ativa
+    private (int done, int total)? ActiveMetaProgress
+    {
+        get
+        {
+            var m = ActiveMeta;
+            if (m is null || m.Tasks is null) return null;
+            int total = m.Tasks.Count;
+            int done = m.Tasks.Count(t => t.Completa == true);
+            return (done, total);
+        }
+    }
+
+}

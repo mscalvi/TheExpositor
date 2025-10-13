@@ -1,0 +1,79 @@
+﻿
+/* Grade com áreas nomeadas: título em cima, imagem embaixo preenchendo tudo */
+.stage-grid {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+        "title"
+        "logo";
+    background: #eaf3ff;
+    color: #142936;
+}
+
+/* Área do título (equivalente ao Label dock=Top do WinForms) */
+.stage-title {
+    grid-area: title;
+    display: grid;
+    width: 100%;
+    gap: 10px;
+    align-items: center;
+    grid-template-areas: "image name";
+    grid-template-columns: 15% 70%;
+    margin-block: 0;
+}
+
+.brand-logo {
+    width: 70px;
+    height: 70px;
+    object-fit: contain;
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+}
+
+.title-image {
+    grid-area: image;
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.title-name {
+    grid-area: name;
+    justify-self: center;
+    text-align: center;
+    height: clamp(72px,10vh,128px);
+    padding: 12px 16px;
+    font-family: system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px,5vw,52px);
+    letter-spacing: .3px;
+}
+
+/* Área da image ocupa todo o restante (dock=Fill) */
+.stage-image-area {
+    grid-area: logo;
+    display: grid;
+    place-items: center;
+    padding: 8px 12px 16px;
+}
+
+/* Imagem ajusta proporcionalmente (equivalente a PictureBox Zoom) */
+.stage-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    image-rendering: auto;
+}
+
+/* Fallback texto quando a imagem não carrega */
+.image-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    opacity: .6;
+    font-size: clamp(16px,2.5vw,24px);
+    border: 2px dashed rgba(255,255,255,.15);
+    border-radius: 12px;
+}

@@ -1,0 +1,165 @@
+﻿/* ===========================
+   ResumePage — estilos locais
+   =========================== */
+
+.resume {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: max(var(--space-4), var(--safe-top)) var(--space-4) max(var(--space-4), var(--safe-bottom));
+    overflow-x: hidden;
+}
+
+/* Cabeçalho do card */
+.resume-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+    .resume-header h2 {
+        margin-bottom: 4px;
+    }
+
+    .resume-header .sub {
+        color: var(--text-muted);
+    }
+
+/* Card da vitrine */
+.showcase {
+    margin-bottom: 12px;
+}
+
+/* ---------- Grade da semana (caixinhas clicáveis) ---------- */
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(44px,1fr));
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.daybox {
+    display: grid;
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-items: center;
+    gap: 2px;
+    min-height: 64px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-elev);
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px 6px;
+    box-shadow: var(--shadow-1);
+}
+
+    .daybox:hover {
+        filter: brightness(.98);
+    }
+
+    .daybox .num {
+        font-weight: 800;
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+
+    .daybox .wday {
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: .9rem;
+    }
+
+    /* estado fechado/aberto (mesma lógica do calendário) */
+    .daybox.closed {
+        background: #ecfdf5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+
+/* ---------- Métricas (cards mini dentro do card) ---------- */
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(160px,1fr));
+    gap: 12px 16px;
+    margin: 4px 0 14px;
+}
+
+.metric {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    padding: 12px;
+}
+
+    .metric h4 {
+        margin: 0 0 6px;
+        text-align: center;
+        font-size: 1rem;
+    }
+
+    .metric div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 2px;
+    }
+
+/* ---------- Lista de horas por projeto ---------- */
+.plans {
+    margin-top: 8px;
+}
+
+    .plans h3 {
+        margin: 0 0 8px;
+        text-align: left;
+    }
+
+    .plans ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--bg-elev);
+        overflow: hidden;
+    }
+
+    .plans li {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .plans li:last-child {
+            border-bottom: 0;
+        }
+
+    .plans .plan {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+    .plans .time {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+    }
+
+/* ---------- Responsivo (A54-first) ---------- */
+@media (max-width: 820px) {
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .week-grid {
+        grid-template-columns: repeat(7, minmax(36px,1fr));
+    }
+}

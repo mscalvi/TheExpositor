@@ -1,0 +1,444 @@
+﻿@page "/resume"
+@using System.Globalization
+@using System.Text.Json
+@using DeltaDaily.Components.Models
+@using DeltaDaily.Components.Services
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject DeltaDaily.Components.Services.IDayStoreService Store
+@inject DeltaDaily.Components.Services.IProjectStoreService ProjectStore
+
+@code {
+    private readonly CultureInfo ptBR = new("pt-BR");
+
+    private ElementReference _fileInput;
+
+    // Hoje e faixas
+    private DateTime Hoje = DateTime.Today;
+    private DateTime SemanaIni;
+    private DateTime SemanaFim;
+    private DateTime MesIni;
+    private DateTime MesFim;
+
+    // Dados carregados
+    private List<DayModel> WeekDays = new();
+    private List<DayModel> MonthDays = new();
+
+    // Id -> Nome do Projeto
+    private IReadOnlyDictionary<string, string> _projetoNomes = new Dictionary<string, string>();
+
+    private async Task RecarregarAsync()
+    {
+        var dHoje = DateTime.Today;
+
+        int delta = ((int)dHoje.DayOfWeek + 6) % 7;
+        SemanaIni = dHoje.Date.AddDays(-delta);
+        SemanaFim = SemanaIni.AddDays(6);
+
+        MesIni = new DateTime(dHoje.Year, dHoje.Month, 1);
+        MesFim = MesIni.AddMonths(1).AddDays(-1);
+
+        var wTasks = Enumerable.Range(0, 7).Select(i => Store.LoadAsync(SemanaIni.AddDays(i)));
+        WeekDays = (await Task.WhenAll(wTasks)).ToList();
+
+        var mTasks = Enumerable.Range(0, DateTime.DaysInMonth(dHoje.Year, dHoje.Month)).Select(i => Store.LoadAsync(MesIni.AddDays(i)));
+        MonthDays = (await Task.WhenAll(mTasks)).ToList();
+
+        var projetos = await ProjectStore.ListAllAsync();
+        _projetoNomes = projetos
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .ToDictionary(p => p.Id!, p => string.IsNullOrWhiteSpace(p.Nome) ? "(sem nome)" : p.Nome);
+    }
+
+    private async Task ClickHiddenFile()
+        => await JS.InvokeVoidAsync("eval", "document.querySelector('input[type=file][accept=\"application/json\"]').click()");
+
+    private async Task OnFileSelected(ChangeEventArgs e)
+    {
+        var text = await JS.InvokeAsync<string>("readSelectedJsonFile");
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        await ImportarAsync(text);
+        await RecarregarAsync();     // recarrega dados
+        StateHasChanged();           // atualiza UI
+    }
+
+    private async Task ImportarAsync(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+
+        if (doc.RootElement.TryGetProperty("days", out var daysProp) && daysProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in daysProp.EnumerateArray())
+            {
+                var day = el.Deserialize<DeltaDaily.Components.Models.DayModel>();
+                if (day is null) continue;
+
+                // segurança: se vier com Data default, tente ler "Data" bruto do JSON
+                if (day.Data == default && el.TryGetProperty("Data", out var dataProp)
+                    && DateTime.TryParse(dataProp.GetString(), out var parsed))
+                {
+                    day.Data = parsed;
+                }
+
+                await Store.SaveAsync(day);
+            }
+        }
+
+        if (doc.RootElement.TryGetProperty("projects", out var prjProp) && prjProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in prjProp.EnumerateArray())
+            {
+                var p = el.Deserialize<DeltaDaily.Components.Models.ProjectModel>();
+                if (p is null) continue;
+                await ProjectStore.SaveAsync(p);
+            }
+        }
+
+        await JS.InvokeVoidAsync("alert", "Importação concluída!");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Semana começando na segunda
+        int delta = ((int)Hoje.DayOfWeek + 6) % 7; // Mon=0 ... Sun=6
+        SemanaIni = Hoje.Date.AddDays(-delta);
+        SemanaFim = SemanaIni.AddDays(6);
+
+        MesIni = new DateTime(Hoje.Year, Hoje.Month, 1);
+        MesFim = MesIni.AddMonths(1).AddDays(-1);
+
+        // Carrega semana (7 dias)
+        var wTasks = Enumerable.Range(0, 7)
+            .Select(i => Store.LoadAsync(SemanaIni.AddDays(i)));
+        WeekDays = (await Task.WhenAll(wTasks)).ToList();
+
+        // Carrega mês inteiro
+        var mTasks = Enumerable.Range(0, DateTime.DaysInMonth(Hoje.Year, Hoje.Month))
+            .Select(i => Store.LoadAsync(MesIni.AddDays(i)));
+        MonthDays = (await Task.WhenAll(mTasks)).ToList();
+
+        // Carrega nomes dos projetos
+        var projetos = await ProjectStore.ListAllAsync();
+        _projetoNomes = projetos
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .ToDictionary(p => p.Id!, p => string.IsNullOrWhiteSpace(p.Nome) ? "(sem nome)" : p.Nome);
+    }
+
+    private static IEnumerable<DayModel> Closed(IEnumerable<DayModel> xs)
+        => xs.Where(d => d.DiaFechado);
+
+    private static TimeSpan? ToSpan(TimeOnly? t)
+        => t.HasValue ? new TimeSpan(t.Value.Hour, t.Value.Minute, 0) : null;
+
+    private static TimeSpan? RemedioHora(DayModel d) => ToSpan(d.HorarioRemedio);
+
+    private static TimeSpan? Avg(IEnumerable<TimeSpan?> valores)
+    {
+        var xs = valores.Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        if (xs.Length == 0) return null;
+        var avgMinutes = xs.Average(v => v.TotalMinutes);
+        return TimeSpan.FromMinutes(Math.Round(avgMinutes));
+    }
+    private static TimeSpan? Min(IEnumerable<TimeSpan?> valores)
+    {
+        var xs = valores.Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        return xs.Length == 0 ? null : xs.Min();
+    }
+    private static TimeSpan? Max(IEnumerable<TimeSpan?> valores)
+    {
+        var xs = valores.Where(v => v.HasValue).Select(v => v!.Value).ToArray();
+        return xs.Length == 0 ? null : xs.Max();
+    }
+
+    private static string Fmt(TimeSpan? ts)
+        => ts is null ? "—" : $"{(int)ts.Value.TotalHours:00}:{ts.Value.Minutes:00}";
+
+    // Duração do trabalho (aceita TimeOnly? ou string "hh:mm")
+    private static TimeSpan ParseDur(object? dur)
+    {
+        if (dur is null) return TimeSpan.Zero;
+
+        if (dur is TimeOnly t1)
+            return new TimeSpan(t1.Hour, t1.Minute, 0);
+
+        if (dur is string s && TimeSpan.TryParse(s, out var ts))
+            return ts;
+
+        return TimeSpan.Zero;
+    }
+
+    // Agrupa horas por Projeto (usando ProjetoId -> nome via dicionário)
+    private static IEnumerable<(string nome, TimeSpan horas)> AgruparPlanos(
+        IEnumerable<DayModel> dias,
+        IReadOnlyDictionary<string, string> projetoNomes)
+    {
+        var flat = dias
+            .SelectMany(d => d.Trabalhos ?? Enumerable.Empty<WorkModel>())
+            .Select(w =>
+            {
+                var dur = ParseDur(w.Duracao);
+                var nome = "(sem projeto)";
+                if (!string.IsNullOrWhiteSpace(w.ProjetoId))
+                    nome = projetoNomes.TryGetValue(w.ProjetoId, out var n) ? n : "(desconhecido)";
+                return (nome, dur);
+            });
+
+        return flat
+            .GroupBy(x => x.nome)
+            .Select(g => (g.Key, TimeSpan.FromMinutes(g.Sum(v => v.dur.TotalMinutes))))
+            .OrderByDescending(x => x.Item2);
+    }
+
+    private void AbrirDia(DateTime d) => Nav.NavigateTo($"/?date={d:yyyy-MM-dd}");
+
+    private static string FmtHM(int totalMinutes)
+    => $"{totalMinutes / 60:00}:{totalMinutes % 60:00}";
+
+    private static int MinutesFromDurLocal(object? dur)
+    {
+        if (dur is null) return 0;
+        if (dur is TimeOnly t) return t.Hour * 60 + t.Minute;
+        if (dur is string s && TimeSpan.TryParse(s, out var ts)) return (int)ts.TotalMinutes;
+        return 0;
+    }
+
+    // Agrega por projeto: dedicadas/paralelas/extras em minutos
+    private static IEnumerable<(string nome, int dedic, int paral, int extra)> AgruparTiposPorProjeto(
+        IEnumerable<DayModel> dias,
+        IReadOnlyDictionary<string, string> projetoNomes)
+    {
+        var flat = dias
+            .SelectMany(d => (d.Trabalhos ?? Enumerable.Empty<WorkModel>())
+                .Select(w => new
+                {
+                    projNome = !string.IsNullOrWhiteSpace(w.ProjetoId) && projetoNomes.TryGetValue(w.ProjetoId, out var n) ? n : "(sem projeto)",
+                    tipo = w.Tipo?.ToString() ?? "",
+                    mins = MinutesFromDurLocal(w.Duracao)
+                }));
+
+        return flat
+            .GroupBy(x => x.projNome)
+            .Select(g =>
+            {
+                int dedic = 0, paral = 0, extra = 0;
+                foreach (var r in g)
+                {
+                    switch (r.tipo)
+                    {
+                        case "Dedicada": dedic += r.mins; break;
+                        case "Paralela": paral += r.mins; break;
+                        case "Extra": extra += r.mins; break;
+                    }
+                }
+                return (g.Key, dedic, paral, extra);
+            })
+            .OrderByDescending(x => x.dedic + x.paral + x.extra);
+    }
+
+    // Formatação "2h", "1h30min", "0h"
+    private static string FmtHuman(int minutes)
+    {
+        if (minutes <= 0) return "0h";
+        var h = minutes / 60;
+        var m = minutes % 60;
+        return m == 0 ? $"{h}h" : $"{h}h{m}min";
+    }
+
+    // Pacote: exporta todos os dias + projetos
+    private record BackupDump(List<DayModel> Days, List<ProjectModel> Projects);
+
+    private async Task ExportarAsync()
+    {
+        var days = await Store.ListAllAsync();           
+        var projects = await ProjectStore.ListAllAsync();  
+
+        var pacote = new { days, projects, version = 1 };
+        var json = JsonSerializer.Serialize(pacote, new JsonSerializerOptions { WriteIndented = true });
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"DeltaDaily-{DateTime.Now:yyyyMMdd-HHmm}.json";
+
+        await JS.InvokeVoidAsync("downloadFile", fileName, "application/json", base64);
+    }
+}
+
+<section class="resume">
+
+    <!-- ====== Bloco Semanal ====== -->
+    <section class="card showcase">
+        <header class="resume-header">
+            <h2>Resumo Semanal</h2>
+            <div class="sub">@SemanaIni.ToString("dd/MM", ptBR) — @SemanaFim.ToString("dd/MM", ptBR)</div>
+        </header>
+
+        <!-- Caixinhas dos dias da semana (clicáveis) -->
+        <div class="week-grid">
+            @foreach (var d in WeekDays)
+            {
+                var fechado = d.DiaFechado;
+                <button class="daybox @(fechado ? "closed" : "open")"
+                        title="@(fechado ? "Fechado" : "Aberto")"
+                        @onclick="@(() => AbrirDia(d.Data))">
+                    <div class="num">@d.Data.Day</div>
+                    <div class="wday">@d.Data.ToString("ddd", ptBR)</div>
+                </button>
+            }
+        </div>
+
+        <!-- Métricas semanais -->
+        <div class="metrics">
+            @{
+                var weekClosed = Closed(WeekDays).ToList();
+                var levs = weekClosed.Select(d => ToSpan(d.SairDaCama));
+                var dorms = weekClosed.Select(d => ToSpan(d.DeitarHora));
+                var meds = weekClosed.Select(RemedioHora);
+            }
+            <div class="metric">
+                <h4>Levantar</h4>
+                <div>Média: <strong>@Fmt(Avg(levs))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(levs))</strong> · Máx: <strong>@Fmt(Max(levs))</strong></div>
+            </div>
+
+            <div class="metric">
+                <h4>Remédio (hora)</h4>
+                <div>Média: <strong>@Fmt(Avg(meds))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(meds))</strong> · Máx: <strong>@Fmt(Max(meds))</strong></div>
+            </div>
+
+            <div class="metric">
+                <h4>Deitar</h4>
+                <div>Média: <strong>@Fmt(Avg(dorms))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(dorms))</strong> · Máx: <strong>@Fmt(Max(dorms))</strong></div>
+            </div>
+        </div>
+
+        <!-- Planos (semana) -->
+        <div class="plans">
+            <!-- Tabela semanal por projeto -->
+            <div class="table-wrap" style="margin-top:12px;">
+                @{
+                    var tiposW = AgruparTiposPorProjeto(WeekDays, _projetoNomes).ToList();
+                }
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Projeto</th>
+                            <th>Horas Dedicadas</th>
+                            <th>Horas Paralelas</th>
+                            <th>Horas Extras</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (tiposW.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="muted">Nenhum trabalho registrado nesta semana.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var p in tiposW)
+                            {
+                                <tr>
+                                    <td>@p.nome</td>
+                                    <td>@FmtHuman(p.dedic)</td>
+                                    <td>@FmtHuman(p.paral)</td>
+                                    <td>@FmtHuman(p.extra)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ====== Bloco Mensal ====== -->
+    <section class="card showcase">
+        <header class="resume-header">
+            <h2>Resumo Mensal</h2>
+            <div class="sub">@Hoje.ToString("MMMM 'de' yyyy", ptBR)</div>
+        </header>
+
+        <!-- Métricas mês -->
+        <div class="metrics">
+            @{
+                var monthClosed = Closed(MonthDays).ToList();
+                var levsM = monthClosed.Select(d => ToSpan(d.SairDaCama));
+                var dormsM = monthClosed.Select(d => ToSpan(d.DeitarHora));
+                var medsM = monthClosed.Select(RemedioHora);
+            }
+            <div class="metric">
+                <h4>Levantar</h4>
+                <div>Média: <strong>@Fmt(Avg(levsM))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(levsM))</strong> · Máx: <strong>@Fmt(Max(levsM))</strong></div>
+            </div>
+
+            <div class="metric">
+                <h4>Remédio (hora)</h4>
+                <div>Média: <strong>@Fmt(Avg(medsM))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(medsM))</strong> · Máx: <strong>@Fmt(Max(medsM))</strong></div>
+            </div>
+
+            <div class="metric">
+                <h4>Deitar</h4>
+                <div>Média: <strong>@Fmt(Avg(dormsM))</strong></div>
+                <div>Mín: <strong>@Fmt(Min(dormsM))</strong> · Máx: <strong>@Fmt(Max(dormsM))</strong></div>
+            </div>
+        </div>
+
+        <!-- Planos (mês) -->
+        <div class="plans">
+            <!-- Tabela mensal por projeto -->
+            <div class="table-wrap" style="margin-top:12px;">
+                @{
+                    var tiposM = AgruparTiposPorProjeto(MonthDays, _projetoNomes).ToList();
+                }
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Projeto</th>
+                            <th>Horas Dedicadas</th>
+                            <th>Horas Paralelas</th>
+                            <th>Horas Extras</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (tiposM.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="muted">Nenhum trabalho registrado neste mês.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var p in tiposM)
+                            {
+                                <tr>
+                                    <td>@p.nome</td>
+                                    <td>@FmtHuman(p.dedic)</td>
+                                    <td>@FmtHuman(p.paral)</td>
+                                    <td>@FmtHuman(p.extra)</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Blodo de Exportar e Importar -->
+    <section class="card showcase">
+        <div class="actions center">
+            <button class="btn primary" @onclick="ExportarAsync">Exportar</button>    
+            <button class="btn primary" @onclick="ClickHiddenFile">Importar</button>
+            <input type="file" @ref="_fileInput" accept="application/json" style="display:none" @onchange="OnFileSelected" />
+        </div>
+    </section>
+</section>

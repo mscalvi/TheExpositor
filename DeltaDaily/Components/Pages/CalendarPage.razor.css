@@ -1,0 +1,189 @@
+﻿/* ===========================
+   CalendarPage — estilos locais
+   =========================== */
+
+.calendar-page {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: max(var(--space-4), var(--safe-top)) var(--space-4) max(var(--space-4), var(--safe-bottom));
+    overflow-x: hidden;
+}
+
+/* Card da vitrine */
+.showcase {
+    margin-bottom: 12px;
+}
+
+/* ---------- Resumo de Hoje ---------- */
+.summary-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+    .summary-header h2 {
+        margin-bottom: 4px;
+    }
+
+    .summary-header small {
+        color: var(--text-muted);
+    }
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px,1fr));
+    gap: 10px 16px;
+    margin-top: 8px;
+}
+
+    .summary-grid > div {
+        display: grid;
+        grid-template-rows: auto auto;
+        gap: 4px;
+    }
+
+    .summary-grid strong {
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .summary-grid span {
+        color: var(--text);
+    }
+
+    /* Pílulas de status */
+    .summary-grid .status span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 88px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-weight: 700;
+    }
+
+        .summary-grid .status span.ok {
+            background: #ecfdf5; /* verde claro */
+            color: #065f46;
+            border-color: #a7f3d0;
+        }
+
+        .summary-grid .status span.pending {
+            background: #fff7ed; /* laranja claro */
+            color: #9a3412;
+            border-color: #fed7aa;
+        }
+
+.summary-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+    .summary-actions .btn {
+        min-width: 220px;
+    }
+
+/* ---------- Seletores e legenda ---------- */
+.month-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.selectors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(160px,1fr));
+    gap: 10px 16px;
+}
+
+    .selectors label > span {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+.legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+    .legend .badge {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+        display: inline-block;
+    }
+
+        .legend .badge.closed {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+
+        .legend .badge.open {
+            background: var(--bg-elev);
+            border-color: var(--border);
+        }
+
+/* ---------- Grade do calendário ---------- */
+.calendar-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px; /* respiro entre dias */
+}
+
+    .calendar-grid thead th {
+        text-align: center;
+        color: var(--text-muted);
+        font-weight: 700;
+        padding: 6px 0;
+    }
+
+    .calendar-grid td {
+        padding: 0;
+    }
+
+.day-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 0;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: var(--shadow-1);
+}
+
+    .day-btn:hover {
+        filter: brightness(.98);
+    }
+
+    .day-btn.open {
+        /* dia aberto = padrão neutro */
+    }
+
+    .day-btn.closed {
+        background: #ecfdf5;
+        color: #065f46;
+        border-color: #a7f3d0;
+    }
+
+/* ---------- Responsivo (A54-first) ---------- */
+@media (max-width: 640px) {
+    .summary-grid {
+        grid-template-columns: repeat(2, minmax(140px,1fr));
+    }
+
+    .selectors {
+        grid-template-columns: 1fr 1fr;
+    }
+}

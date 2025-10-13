@@ -1,0 +1,132 @@
+﻿@page "/stage"
+
+@inject BingoPlayer.Services.PlayService Play
+@inject BingoPlayer.Services.PackageService Package
+@inject IJSRuntime JS
+
+<div class="stage-grid">
+    <header class="stage-title">
+        <div class="title-image">
+            <img src="default_logo.png" alt="logo" class="brand-logo" />
+        </div>
+        <div class="title-name">
+            @displayTitle
+        </div>
+    </header>
+
+    <section class="stage-image-area">
+        @if (!string.IsNullOrEmpty(imageSrc))
+        {
+            <img class="stage-image"
+                 src="@imageSrc"
+                 alt="@displayTitle"
+                 loading="lazy" />
+        }
+        else
+        {
+            <div class="image-fallback"><span>Imagem não disponível</span></div>
+        }
+    </section>
+</div>
+
+@code {
+    private DotNetObjectReference<ShowPage>? _selfRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Package.LoadAsync();
+        BuildHeadersFor5x5(); // se usar cabeçalhos
+        ApplyCover();         // começa na capa
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("stageSync.subscribe", _selfRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnStageMessage(string mode, int id)
+    {
+        if (string.Equals(mode, "cover", StringComparison.OrdinalIgnoreCase))
+            ApplyCover();
+        else
+            ApplyElement(id);
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _selfRef?.Dispose();
+    }
+
+
+    private string displayTitle = "Bingo";
+    private string? imageSrc;
+    // rótulos visuais para 5×5 (vindos do GameHeader) — ex.: S O R T E
+    private string[] FiveHeaders = new[] { "B", "I", "N", "G", "O" };
+
+    private void BuildHeadersFor5x5()
+    {
+        var header = Package.Game?.GameHeader ?? "";
+        var letters = header.Where(char.IsLetter)
+                            .Select(c => c.ToString().ToUpperInvariant())
+                            .ToList();
+
+        FiveHeaders = (Package.Game?.GameSize == 5 && letters.Count >= 5)
+            ? letters.Take(5).ToArray()
+            : new[] { "B", "I", "N", "G", "O" };
+    }
+
+    // Retorna o rótulo da coluna (ex.: "S") para um elemento 5×5; null em 4×4
+    private string? ColumnLabelFor(int elementId)
+    {
+        if (Package.Game?.GameSize != 5) return null;
+
+        if (Package.Game.BElements.Any(e => e.Id == elementId)) return FiveHeaders[0];
+        if (Package.Game.IElements.Any(e => e.Id == elementId)) return FiveHeaders[1];
+        if (Package.Game.NElements.Any(e => e.Id == elementId)) return FiveHeaders[2];
+        if (Package.Game.GElements.Any(e => e.Id == elementId)) return FiveHeaders[3];
+        if (Package.Game.OElements.Any(e => e.Id == elementId)) return FiveHeaders[4];
+        return null;
+    }
+
+    private void HandleStageChange()
+    {
+        if (Play.CurrentStage == BingoPlayer.Services.PlayService.StageMode.Cover) ApplyCover();
+        else if (Play.CurrentStage == BingoPlayer.Services.PlayService.StageMode.Element && Play.CurrentElementId is int id) ApplyElement(id);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ApplyCover()
+    {
+        displayTitle = !string.IsNullOrWhiteSpace(Package.Game?.GameTitle)
+            ? Package.Game!.GameTitle
+            : (Package.Game?.GameName ?? "Bingo");
+        imageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(Package.CoverImageName);
+    }
+
+    private void ApplyElement(int id)
+    {
+        var el = Package.Game?.AllElements.FirstOrDefault(x => x.Id == id);
+        var label = ColumnLabelFor(id); // null em 4×4
+
+        if (el is null)
+        {
+            displayTitle = "Bingo";
+            imageSrc = null;
+            return;
+        }
+
+        displayTitle = label is null
+            ? el.CardName                       // 4×4 (sem coluna)
+            : $"Coluna {label} - {el.CardName}"; // 5×5 (com coluna)
+
+        imageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(el.ImageName);
+    }
+
+}

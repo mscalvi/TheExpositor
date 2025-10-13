@@ -1,0 +1,194 @@
+﻿@page "/calendar"
+@using System.Globalization
+@inject NavigationManager Nav
+@inject DeltaDaily.Components.Services.IDayStoreService Store
+
+<section class="calendar-page">
+
+    <!-- TOPO: Resumo do dia de hoje -->
+    <section class="card showcase">
+        <header class="summary-header">
+            <h2>Hoje</h2>
+            <small>@Hoje.Data.ToString("dddd · dd/MM/yy", ptBR)</small>
+        </header>
+
+        <div class="summary-grid">
+            <div><strong>1º Despertar</strong><span>@Fmt(Hoje.PrimeiroDespertar)</span></div>
+            <div><strong>Sair da Cama</strong><span>@Fmt(Hoje.SairDaCama)</span></div>
+            <div><strong>Logout</strong><span>@Fmt(Hoje.LogoutHora)</span></div>
+            <div><strong>Deitar</strong><span>@Fmt(Hoje.DeitarHora)</span></div>
+
+            <div>
+                <strong>Remédio</strong>
+                <span>
+                    @if (Hoje.Remedio.HasValue && Hoje.Remedio.Value != 0)
+                    {
+                        @Hoje.Remedio.Value.ToString()
+                        @if (Hoje.DoseRemedio.HasValue && Hoje.DoseRemedio.Value != 0)
+                        {
+                            @($" · {Hoje.DoseRemedio.Value}")
+                        }
+                        @($" · {Fmt(Hoje.HorarioRemedio)}")
+                    }
+                    else
+                    {
+                        @("-")
+                    }
+                </span>
+            </div>
+
+            <div><strong>Produtividade</strong><span>@Hoje.Trabalhos.Count entrada(s)</span></div>
+            <div><strong>Exercícios</strong><span>@Hoje.Exercicios.Count</span></div>
+            <div><strong>Refeições</strong><span>@Hoje.Refeicoes.Count</span></div>
+
+            <div class="status">
+                <strong>Status</strong>
+                <span class="@((Hoje.DiaFechado ? "ok" : "pending"))">
+                    @(Hoje.DiaFechado ? "Fechado" : "Aberto")
+                </span>
+            </div>
+        </div>
+
+        <div class="summary-actions">
+            <button type="button" class="btn primary" @onclick="IrParaHoje">
+                Abrir Daily de Hoje
+            </button>
+        </div>
+    </section>
+
+    <!-- BASE: Calendário -->
+    <section class="card showcase">
+        <header class="month-header">
+            <div class="selectors">
+                <label>
+                    <span>Ano</span>
+                    <select value="@Ano" @onchange="OnAnoChanged">
+                        @foreach (var y in Anos)
+                        {
+                            <option value="@y">@y</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>Mês</span>
+                    <select value="@Mes" @onchange="OnMesChanged">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@ptBR.DateTimeFormat.GetMonthName(m)</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <div class="legend">
+                <span class="badge closed"></span><small>Fechado</small>
+                <span class="badge open"></span><small>Aberto</small>
+            </div>
+        </header>
+
+        <table class="calendar-grid">
+            <thead>
+                <tr>
+                    @foreach (var w in CabecalhosSemana)
+                    {
+                        <th>@w</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var semana in GradeMes)
+                {
+                    <tr>
+                        @foreach (var dia in semana)
+                        {
+                            <td>
+                                @if (dia.HasValue)
+                                {
+                                    var key = dia.Value.ToString("yyyy-MM-dd");
+                                    var closed = Fechados.Contains(key);
+                                    <button type="button"
+                                            class="day-btn @(closed ? "closed" : "open")"
+                                            title="@dia.Value.ToString("dd/MM/yyyy")"
+                                            @onclick="@(() => AbrirDia(dia.Value))">
+                                        @dia.Value.Day
+                                    </button>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+</section>
+
+@code {
+    private readonly CultureInfo ptBR = new("pt-BR");
+
+    // Resumo de hoje
+    private DeltaDaily.Components.Models.DayModel Hoje = new();
+
+    // Calendário
+    private int Ano = DateTime.Today.Year;
+    private int Mes = DateTime.Today.Month;
+    private HashSet<string> Fechados = new();
+
+    private static readonly string[] CabecalhosSemana = new[] { "D", "S", "T", "Q", "Q", "S", "S" };
+    private IEnumerable<int> Anos => Enumerable.Range(DateTime.Today.Year - 5, 11);
+    private List<List<DateTime?>> GradeMes => MontarGrade(Ano, Mes);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Hoje = await Store.LoadAsync(DateTime.Today);
+        await CarregarStatusMes();
+    }
+
+    private async Task CarregarStatusMes()
+    {
+        Fechados.Clear();
+        var itens = await Store.ListByMonthAsync(Ano, Mes);
+        foreach (var (date, closed) in itens)
+            if (closed) Fechados.Add(date.ToString("yyyy-MM-dd"));
+        StateHasChanged();
+    }
+
+    private Task OnAnoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e?.Value?.ToString(), out var y)) Ano = y;
+        return CarregarStatusMes();
+    }
+
+    private Task OnMesChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e?.Value?.ToString(), out var m)) Mes = m;
+        return CarregarStatusMes();
+    }
+
+    private void IrParaHoje() => Nav.NavigateTo($"/?date={DateTime.Today:yyyy-MM-dd}");
+    private void AbrirDia(DateTime d) => Nav.NavigateTo($"/?date={d:yyyy-MM-dd}");
+
+    private static string Fmt(TimeOnly? t) => t.HasValue ? t.Value.ToString("HH\\:mm") : "-";
+
+    private static List<List<DateTime?>> MontarGrade(int ano, int mes)
+    {
+        var res = new List<List<DateTime?>>(6);
+        var primeiro = new DateTime(ano, mes, 1);
+        var diasNoMes = DateTime.DaysInMonth(ano, mes);
+        int start = (int)primeiro.DayOfWeek;
+
+        int dia = 1;
+        for (int linha = 0; linha < 6; linha++)
+        {
+            var semana = new List<DateTime?>(7);
+            for (int col = 0; col < 7; col++)
+            {
+                int idx = linha * 7 + col;
+                if (idx < start || dia > diasNoMes) semana.Add(null);
+                else { semana.Add(new DateTime(ano, mes, dia)); dia++; }
+            }
+            res.Add(semana);
+        }
+        return res;
+    }
+}

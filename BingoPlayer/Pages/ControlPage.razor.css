@@ -1,0 +1,308 @@
+﻿html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: #eaf3ff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* ===== Layout base ===== */
+.control-wrap {
+    min-height: 97vh;
+    background: #eaf3ff;
+    padding: 16px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 12px;
+    color: #fff;
+    font-family: system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+    overflow-x: hidden;
+}
+
+/* ===== Topo (logo + títulos + info-grid) ===== */
+.app-bar {
+    display: grid;
+    width: 100%;
+    gap: 10px;
+    align-items: center;
+    grid-template-areas: "brand game info";
+    grid-template-columns: 15% 20% 64%;
+    margin-block: 0;
+}
+
+/* mapeamento das áreas */
+.app-brand {
+    grid-area: brand;
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: clamp(20px,3vw,28px);
+    font-weight: 400;
+    letter-spacing: .3px;
+    color: #142936;
+}
+
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.12);
+}
+
+.app-game {
+    grid-area: game;
+    justify-self: center;
+    text-align: center;
+    line-height: 1.1;
+}
+
+    .app-game .game-name {
+        font-size: clamp(14px,2.2vw,18px);
+        opacity: .9;
+        font-weight: 600;
+        color: #142936;
+    }
+
+    .app-game .game-title {
+        font-size: clamp(12px,2vw,14px);
+        opacity: .75;
+        color: #142936;
+    }
+
+/* grade de infos ocupa a coluna 3 */
+.info-grid {
+    grid-area: info;
+    justify-self: stretch;
+    display: grid;
+    gap: 12px;
+    margin-inline: auto;
+    grid-template-columns: repeat(3, minmax(auto, 1fr));
+    place-content: center;
+}
+
+.info-card {
+    background: #151515;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 120px;
+}
+
+    .info-card h3 {
+        font-size: 14px;
+        opacity: .8;
+        margin: 0 0 6px;
+    }
+
+.info-value {
+    margin: 0;
+}
+
+.help-card {
+    background: #151515;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 50px;
+}
+
+.radio-row,
+.buttons-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ===== Botões ===== */
+.btn {
+    border: 0;
+    border-radius: 12px;
+    min-width: 135px;
+    max-width: 135px;
+    padding: 10px 16px;
+    background: #142936;
+    color: #eaeaea;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+/* botões dos elementos (1..N) */
+.id-btn {
+    min-width: 65px;
+    max-width: 65px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+    .id-btn.on {
+        background: #2b658a;
+    }
+
+/* ===== Área de jogo ===== */
+.play-area {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.columns {
+    background: #111;
+    border-radius: 14px;
+    display: grid;
+    grid-template-rows: repeat(var(--rows, 5), 1fr);
+    padding: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    height: auto;
+    min-height: 0;
+}
+
+.col {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 10px;
+    align-items: center;
+    background: #161616;
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
+    .col h4 {
+        grid-column: 1;
+        margin: 0;
+        padding: 0;
+        font-size: 18px;
+        letter-spacing: 2px;
+    }
+
+.chips-row {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 46px;
+    padding: 4px;
+    border: 1px dashed rgba(255,255,255,.08);
+    border-radius: 10px;
+}
+
+.results {
+    background: #151515;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 10px;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+    .results h4 {
+        margin: 0;
+    }
+
+.last-result {
+    background: #1d1d1d;
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+    min-height: 100px;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    height: 220px;
+    min-height: 220px;
+    max-height: 220px;
+    overflow: hidden;
+}
+
+.results-list {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px dashed rgba(255,255,255,.08);
+    overflow: auto;
+}
+
+/* caixa de logo genérica (se usar em outro lugar) */
+.logo-box {
+    display: grid;
+    place-items: center;
+    padding: 8px;
+}
+
+    .logo-box img {
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+    }
+
+/* ===== Responsivo ===== */
+/* quando não couber 20/20/60, deixa brand+game 50/50 e info abaixo ocupando 100% */
+@media (max-width:1100px) {
+    .app-bar {
+        grid-template-areas:
+            "brand game"
+            "info  info";
+        grid-template-columns: 1fr 1fr; /* 50/50 */
+    }
+
+    .info-grid {
+        justify-self: stretch;
+        grid-template-columns: repeat(2, minmax(240px, 1fr));
+    }
+
+    .play-area {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* mobile: tudo empilhado */
+@media (max-width:720px) {
+    .app-bar {
+        grid-template-areas:
+            "brand"
+            "game"
+            "info";
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .app-brand {
+        justify-self: center;
+    }
+
+    .app-game {
+        justify-self: center;
+        text-align: center;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}

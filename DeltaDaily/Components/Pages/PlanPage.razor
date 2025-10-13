@@ -1,0 +1,510 @@
+﻿@page "/plans/{Id}"
+
+@using System.Web
+@using DeltaDaily.Components.Models
+@inject DeltaDaily.Components.Services.IProjectStoreService Store
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@code {
+    [Parameter] public string Id { get; set; } = default!;
+
+    private ProjectModel? Project;
+    private bool NotFound;
+
+    // Ideias (criação/edição)
+    private bool criandoIdeia = false;
+    private string novaIdeiaNome = string.Empty;
+
+    private TaskModel? editandoIdeia;
+    private string edNome = string.Empty;
+    private string? edComentario;
+    private bool edCompleta;
+
+    // Descrição (edição)
+    private bool editandoDesc = false;
+    private string descDraft = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Id))
+        {
+            NotFound = true;
+            return;
+        }
+
+        Project = await Store.LoadAsync(Id);
+        NotFound = Project is null;
+        if (Project is null) return;
+
+        var newPhase = ComputePhase(Project);
+        if (Project.Fase != newPhase)
+        {
+            Project.Fase = newPhase;
+            Project.DataAlteracao = DateTime.Now;
+            await Store.SaveAsync(Project);
+        }
+    }
+
+    private static DeltaDaily.Components.Data.ProjectData.Phase ComputePhase(ProjectModel p)
+    {
+        if (p.Metas?.Any(m => m?.Completa == true) == true)
+            return DeltaDaily.Components.Data.ProjectData.Phase.Loja;
+
+        if (p.Metas is { Count: > 0 })
+            return DeltaDaily.Components.Data.ProjectData.Phase.Oficina;
+
+        if (!string.IsNullOrWhiteSpace(p.Descricao))
+            return DeltaDaily.Components.Data.ProjectData.Phase.Laboratório;
+
+        return DeltaDaily.Components.Data.ProjectData.Phase.Feira;
+    }
+
+    private void Voltar() => Nav.NavigateTo("/plans");
+
+    private async Task Ativar()
+    {
+        if (Project is null || string.IsNullOrWhiteSpace(Project.Id))
+            return;
+
+        await Store.SetActiveAsync(Project.Id);
+        Project.Ativo = true;
+        StateHasChanged();
+    }
+
+    // === Descrição ===
+    private void ComecarEditarDescricao()
+    {
+        if (Project is null) return;
+        descDraft = Project.Descricao ?? string.Empty;
+        editandoDesc = true;
+    }
+
+    private void CancelarEdicaoDescricao()
+    {
+        editandoDesc = false;
+        descDraft = string.Empty;
+    }
+
+    private async Task SalvarDescricaoAsync()
+    {
+        if (Project is null) return;
+
+        Project.Descricao = string.IsNullOrWhiteSpace(descDraft) ? null : descDraft.Trim();
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+
+        editandoDesc = false;
+        descDraft = string.Empty;
+        StateHasChanged();
+    }
+
+    // === Metas ===
+    private void AddMeta() => Nav.NavigateTo($"/plans/{Id}/meta/new");
+
+    private void AbrirMeta(MetaModel meta)
+    {
+        if (meta is null) return;
+        var slug = Uri.EscapeDataString(meta.Nome ?? string.Empty);
+        Nav.NavigateTo($"/plans/{Id}/meta/{slug}");
+    }
+
+    private async Task TornarMetaAtiva(MetaModel meta)
+    {
+        if (Project?.Metas is null) return;
+
+        foreach (var m in Project.Metas)
+            m.Ativa = ReferenceEquals(m, meta);
+
+        Project.MetaAtual = meta.Nome;
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+        StateHasChanged();
+    }
+
+    // === Ideias ===
+    private void ComecarCriarIdeia()
+    {
+        criandoIdeia = true;
+        novaIdeiaNome = string.Empty;
+    }
+
+    private async Task SalvarNovaIdeia()
+    {
+        if (Project is null) return;
+
+        Project.Ideias ??= new List<TaskModel>();
+        Project.Ideias.Add(new TaskModel
+        {
+            Nome = novaIdeiaNome.Trim(),
+            Criacao = DateOnly.FromDateTime(DateTime.Today),
+            Completa = false,
+            Finalizada = null
+        });
+
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+
+        criandoIdeia = false;
+        novaIdeiaNome = string.Empty;
+    }
+
+    private void CancelarCriacaoIdeia()
+    {
+        criandoIdeia = false;
+        novaIdeiaNome = string.Empty;
+    }
+
+    private void EditarIdeia(TaskModel idea)
+    {
+        editandoIdeia = idea;
+        edNome = idea.Nome;
+        edComentario = idea.Comentario;
+        edCompleta = idea.Completa == true;
+    }
+
+    private async Task SalvarEdicaoIdeia()
+    {
+        if (Project is null || editandoIdeia is null) return;
+
+        editandoIdeia.Nome = edNome.Trim();
+        editandoIdeia.Comentario = string.IsNullOrWhiteSpace(edComentario) ? null : edComentario.Trim();
+
+        if (edCompleta)
+        {
+            editandoIdeia.Completa = true;
+            editandoIdeia.Finalizada ??= DateOnly.FromDateTime(DateTime.Today);
+        }
+        else
+        {
+            editandoIdeia.Completa = false;
+            editandoIdeia.Finalizada = null;
+        }
+
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+
+        editandoIdeia = null;
+        edNome = string.Empty;
+        edComentario = null;
+        edCompleta = false;
+    }
+
+    private void CancelarEdicaoIdeia()
+    {
+        editandoIdeia = null;
+        edNome = string.Empty;
+        edComentario = null;
+        edCompleta = false;
+    }
+
+    private async Task ExcluirIdeia(TaskModel idea)
+    {
+        if (Project is null) return;
+
+        var ok = await JS.InvokeAsync<bool>("confirm", $"Excluir a ideia \"{idea.Nome}\"?");
+        if (!ok) return;
+
+        Project.Ideias?.Remove(idea);
+        Project.DataAlteracao = DateTime.Now;
+        await Store.SaveAsync(Project);
+    }
+
+    // === Meta ativa — concluir + comentar ===
+    private async Task ConcluirComComentario(TaskModel t)
+    {
+        var comentario = await JS.InvokeAsync<string>("prompt",
+            "Comentário (opcional) para concluir a tarefa:", t.Comentario ?? string.Empty);
+
+        t.Completa = true;
+        t.Finalizada = DateOnly.FromDateTime(DateTime.Today);
+        if (!string.IsNullOrWhiteSpace(comentario))
+            t.Comentario = comentario.Trim();
+
+        if (Project is not null)
+        {
+            Project.DataAlteracao = DateTime.Now;
+            await Store.SaveAsync(Project);
+            StateHasChanged();
+        }
+    }
+}
+
+<section class="page plan">
+    @if (NotFound)
+    {
+        <div class="card">
+            <h2>Projeto não encontrado</h2>
+            <button class="btn primary" @onclick="Voltar">Voltar</button>
+        </div>
+    }
+    else if (Project is null)
+    {
+        <div class="card">
+            <p>Carregando…</p>
+        </div>
+    }
+    else
+    {
+        <!-- ==== GRUPO 1: Cabeçalho + Visão Geral + Descrição + Meta Ativa ==== -->
+        <section class="card showcase">
+            <header class="page-header">
+                <h1>@Project.Nome</h1>
+                <div class="muted">
+                    Criado em @Project.DataCriacao?.ToString("dd/MM/yy") ·
+                    Atualizado em @Project.DataAlteracao?.ToString("dd/MM/yy")
+                </div>
+            </header>
+
+            <section class="card">
+                <h2>Visão Geral</h2>
+                <div class="form-grid">
+                    <div class="topics">
+                        <span class="label">Fase Atual</span>
+                        <div class="value">@Project.Fase</div>
+                    </div>
+                    <div class="topics">
+                        <span class="label">Resumo</span>
+                        <div class="value">@Project.Resumo</div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Project.MetaAtual))
+                    {
+                        <div class="topics">
+                            <span class="label">Meta em Andamento</span>
+                            <div class="value">@Project.MetaAtual</div>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <!-- Descrição com botão Editar -->
+            <section class="card">
+                <div class="section-title">
+                    <h2>Descrição</h2>
+                    @if (!editandoDesc)
+                    {
+                        <button class="btn small primary" @onclick="ComecarEditarDescricao">Editar</button>
+                    }
+                </div>
+
+                @if (!editandoDesc)
+                {
+                    <p>@(string.IsNullOrWhiteSpace(Project.Descricao) ? "—" : Project.Descricao)</p>
+                }
+                else
+                {
+                    <div class="form-grid">
+                        <label class="span-row">
+                            <span>Texto da descrição</span>
+                            <InputTextArea @bind-Value="descDraft" rows="8" class="input" />
+                        </label>
+                    </div>
+                    <div class="actions center" style="margin-top:8px;">
+                        <button class="btn primary" @onclick="SalvarDescricaoAsync">Salvar</button>
+                        <button class="btn danger" @onclick="CancelarEdicaoDescricao">Cancelar</button>
+                    </div>
+                }
+            </section>
+
+            @* === META ATIVA (tabela) ===================================== *@
+            @{
+                var metaAtiva = Project?.Metas?.FirstOrDefault(m => m.Ativa);
+            }
+            @if (metaAtiva is not null)
+            {
+                <section class="card">
+                    <div class="active-meta-head">
+                        <h3 class="active-meta-name">@metaAtiva.Nome</h3>
+                        @if (!string.IsNullOrWhiteSpace(metaAtiva.Objetivo))
+                        {
+                            <p class="active-meta-desc">@metaAtiva.Objetivo</p>
+                        }
+                    </div>
+
+                    <div class="table-wrap" style="margin-top:8px;">
+                        <table class="table meta-table">
+                            <thead>
+                                <tr>
+                                    <th>Tarefa</th>
+                                    <th>Criada</th>
+                                    <th>Concluída</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if ((metaAtiva.Tasks?.Count ?? 0) == 0)
+                                {
+                                    <tr>
+                                        <td colspan="3" class="muted">Sem tasks nesta meta.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var t in metaAtiva.Tasks)
+                                    {
+                                        <tr>
+                                            <td class="name">
+                                                <div class="name-scroller">@t.Nome</div>
+                                                @if (!string.IsNullOrWhiteSpace(t.Comentario))
+                                                {
+                                                    <div class="muted small mt-1">Comentário: @t.Comentario</div>
+                                                }
+                                            </td>
+                                            <td>@t.Criacao.ToString("dd/MM/yy")</td>
+                                            <td>
+                                                @if (t.Completa == true)
+                                                {
+                                                    @t.Finalizada?.ToString("dd/MM/yy")
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn small primary"
+                                                            @onclick="() => ConcluirComComentario(t)">
+                                                        Concluir + comentar
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        </section>
+
+        <!-- ==== GRUPO 2: Metas + Ideias + Ações ==== -->
+        <section class="card showcase">
+            <section class="card">
+                <div class="section-title">
+                    <h2>Metas</h2>
+                    <button class="btn primary small" @onclick="AddMeta">+ Nova meta</button>
+                </div>
+
+                @if ((Project.Metas?.Count ?? 0) == 0)
+                {
+                    <p class="muted">Nenhuma meta.</p>
+                }
+                else
+                {
+                    <ul class="list">
+                        @foreach (var m in Project.Metas)
+                        {
+                            <li class="item">
+                                <div class="name">
+                                    @m.Nome
+                                    @if (m.Ativa)
+                                    {
+                                        <span class="tag">ATIVA</span>
+                                    }
+                                    @if (m.Completa)
+                                    {
+                                        <span class="tag success">COMPLETA</span>
+                                    }
+                                </div>
+
+                                <div class="muted" style="margin-top:4px;">
+                                    <div>Início: @m.DataCriacao.ToString("dd/MM/yy")</div>
+                                    <div>Conclusão: @(m.DataFechamento?.ToString("dd/MM/yy") ?? "-")</div>
+                                    <div>Tarefas: @m.TarefasTotais</div>
+                                </div>
+
+                                <div class="actions" style="margin-top:8px;">
+                                    <button class="btn small primary" @onclick="@(() => AbrirMeta(m))">Detalhes</button>
+                                    @if (!m.Ativa)
+                                    {
+                                        <button class="btn small primary" @onclick="@(() => TornarMetaAtiva(m))">Ativar</button>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="card">
+                <div class="section-title">
+                    <h2>Caixa de Ideias</h2>
+                    @if (!criandoIdeia)
+                    {
+                        <button class="btn small primary" @onclick="ComecarCriarIdeia">+ Nova ideia</button>
+                    }
+                </div>
+
+                @if (criandoIdeia)
+                {
+                    <div class="form-grid" style="margin-top:8px;">
+                        <label class="span-row">
+                            <span>Nome da ideia</span>
+                            <InputText @bind-Value="novaIdeiaNome" class="input" />
+                        </label>
+                    </div>
+                    <div class="actions center" style="margin-top:8px;">
+                        <button class="btn primary" @onclick="SalvarNovaIdeia" disabled="@string.IsNullOrWhiteSpace(novaIdeiaNome)">
+                            Salvar
+                        </button>
+                        <button class="btn danger" @onclick="CancelarCriacaoIdeia">Cancelar</button>
+                    </div>
+                }
+
+                @if ((Project.Ideias?.Count ?? 0) == 0)
+                {
+                    <p class="muted" style="margin-top:12px;">Sem ideias.</p>
+                }
+                else
+                {
+                    <ul class="list" style="margin-top:12px;">
+                        @foreach (var idea in Project.Ideias.ToList())
+                        {
+                            <li class="item">
+                                @if (ReferenceEquals(editandoIdeia, idea))
+                                {
+                                    <div class="form-grid span-row">
+                                        <label class="span-row">
+                                            <span>Nome</span>
+                                            <InputText @bind-Value="edNome" class="input" />
+                                        </label>
+
+                                        <label class="span-row">
+                                            <span>Comentário</span>
+                                            <InputText @bind-Value="edComentario" class="input" />
+                                        </label>
+                                    </div>
+
+                                    <div class="actions" style="margin-top:8px;">
+                                        <button class="btn small primary" @onclick="SalvarEdicaoIdeia">Salvar</button>
+                                        <button class="btn small danger" @onclick="CancelarEdicaoIdeia">Cancelar</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="idea-line">
+                                        <span class="name">@idea.Nome</span>
+                                        <span class="sep">—</span>
+                                        <span class="muted">Criada em: @idea.Criacao.ToString("dd/MM/yy")</span>
+                                        @if (!string.IsNullOrWhiteSpace(idea.Comentario))
+                                        {
+                                            <span class="muted">· Comentário: @idea.Comentario</span>
+                                        }
+                                    </div>
+
+                                    <div class="actions under">
+                                        <button class="btn small primary" @onclick="@(() => EditarIdeia(idea))">Editar</button>
+                                        <button class="btn small danger" @onclick="@(() => ExcluirIdeia(idea))">Excluir</button>
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="card">
+                <div class="actions center">
+                    <button class="btn primary" @onclick="Ativar">Trabalhar</button>
+                    <button class="btn primary" @onclick="Voltar">Voltar</button>
+                </div>
+            </section>
+        </section>
+    }
+</section>
