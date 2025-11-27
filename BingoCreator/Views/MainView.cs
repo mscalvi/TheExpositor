@@ -849,7 +849,7 @@ namespace BingoCreator
             string listName = Path.GetFileName(folder);
 
             // 1) Coleta arquivos de imagem (png primeiro, depois jpg e jpeg)
-            var imageFiles = new[] { "*.png", "*.jpg", "*.jpeg" }
+            var imageFiles = new[] { "*.png", "*.jpg", "*.jpeg", "*.bmp" }
                 .SelectMany(p => Directory.EnumerateFiles(folder, p))
                 .ToList();
 

@@ -192,7 +192,7 @@ namespace BingoCreator.Services
                 minElements = 40;
             } else
             {
-                minElements = 50;
+                minElements = 40;
             }
 
             ListModel list = DataService.GetListById(cards.ListId);
