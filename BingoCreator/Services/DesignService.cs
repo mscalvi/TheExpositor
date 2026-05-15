@@ -82,18 +82,42 @@ namespace BingoCreator.Services
         }
 
         // cria XFont com embed garantindo (fallback para Arial/Segoe se a fonte não estiver instalada)
+        //public static XFont CreateFont(string family, double size, XFontStyle style)
+        //{
+        //    try
+        //    {
+        //        var opts = new XPdfFontOptions(PdfFontEncoding.Unicode); // sua versão aceita 1 argumento
+        //        return new XFont(family, size, style, opts);
+        //    }
+        //    catch
+        //    {
+        //        var fb = OperatingSystem.IsWindows() ? "Verdana" : "Verdana";
+        //        var opts = new XPdfFontOptions(PdfFontEncoding.Unicode);
+        //        return new XFont(fb, size, style, opts);
+        //    }
+        //}
+
         public static XFont CreateFont(string family, double size, XFontStyle style)
         {
             try
             {
-                var opts = new XPdfFontOptions(PdfFontEncoding.Unicode); // sua versão aceita 1 argumento
-                return new XFont(family, size, style, opts);
-            }
-            catch
-            {
-                var fb = OperatingSystem.IsWindows() ? "Segoe UI" : "Arial";
+                Debug.WriteLine($"Tentando fonte: {family}");
+
                 var opts = new XPdfFontOptions(PdfFontEncoding.Unicode);
-                return new XFont(fb, size, style, opts);
+
+                var font = new XFont(family, size, style, opts);
+
+                Debug.WriteLine($"SUCESSO: {family}");
+
+                return font;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ERRO FONTE {family}: {ex}");
+
+                var opts = new XPdfFontOptions(PdfFontEncoding.Unicode);
+
+                return new XFont("Comic Sans MS", size, style, opts);
             }
         }
 

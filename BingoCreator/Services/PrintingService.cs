@@ -825,7 +825,6 @@ namespace BingoCreator.Services
                     return;
                 }
 
-                // ✅ NÃO use f.Options (não existe em PdfSharpCore)
                 f = new XFont(f.Name, nextPt, f.Style);
                 // Se precisar garantir Unicode/Embedding, use o overload com XPdfFontOptions:
                 // using PdfSharpCore.Pdf;
@@ -834,47 +833,81 @@ namespace BingoCreator.Services
             }
         }
 
+        //private static List<string> WrapByWidth(XGraphics gfx, string text, XFont font, double maxW)
+        //{
+        //    var tokens = Regex.Split(text, @"(\s+)"); // preserva espaços
+        //    var lines = new List<string>();
+        //    var sb = new StringBuilder();
+
+        //    foreach (var tok in tokens)
+        //    {
+        //        string candidate = sb.Length == 0 ? tok.TrimStart() : sb.ToString() + tok;
+        //        if (gfx.MeasureString(candidate, font).Width <= maxW)
+        //        {
+        //            sb.Clear(); sb.Append(candidate);
+        //            continue;
+        //        }
+
+        //        // fecha a linha atual (se tiver algo)
+        //        if (sb.Length > 0)
+        //        {
+        //            lines.Add(sb.ToString().TrimEnd());
+        //            sb.Clear();
+        //        }
+
+        //        // token sozinho não cabe: quebra por caracteres
+        //        string t = tok.Trim();
+        //        if (t.Length == 0) continue;
+
+        //        int start = 0;
+        //        while (start < t.Length)
+        //        {
+        //            int len = 1;
+        //            while (start + len <= t.Length &&
+        //                   gfx.MeasureString(t.AsSpan(start, len).ToString(), font).Width <= maxW)
+        //                len++;
+        //            if (len > 1) len--; // último que coube
+        //            lines.Add(t.Substring(start, len));
+        //            start += len;
+        //        }
+        //    }
+
+        //    if (sb.Length > 0)
+        //        lines.Add(sb.ToString().TrimEnd());
+
+        //    return lines;
+        //}
+
         private static List<string> WrapByWidth(XGraphics gfx, string text, XFont font, double maxW)
         {
-            var tokens = Regex.Split(text, @"(\s+)"); // preserva espaços
+            var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
             var lines = new List<string>();
-            var sb = new StringBuilder();
+            var current = "";
 
-            foreach (var tok in tokens)
+            foreach (var word in words)
             {
-                string candidate = sb.Length == 0 ? tok.TrimStart() : sb.ToString() + tok;
-                if (gfx.MeasureString(candidate, font).Width <= maxW)
+                string test = string.IsNullOrEmpty(current)
+                    ? word
+                    : current + " " + word;
+
+                double width = gfx.MeasureString(test, font).Width;
+
+                if (width <= maxW)
                 {
-                    sb.Clear(); sb.Append(candidate);
-                    continue;
+                    current = test;
                 }
-
-                // fecha a linha atual (se tiver algo)
-                if (sb.Length > 0)
+                else
                 {
-                    lines.Add(sb.ToString().TrimEnd());
-                    sb.Clear();
-                }
+                    if (!string.IsNullOrEmpty(current))
+                        lines.Add(current);
 
-                // token sozinho não cabe: quebra por caracteres
-                string t = tok.Trim();
-                if (t.Length == 0) continue;
-
-                int start = 0;
-                while (start < t.Length)
-                {
-                    int len = 1;
-                    while (start + len <= t.Length &&
-                           gfx.MeasureString(t.AsSpan(start, len).ToString(), font).Width <= maxW)
-                        len++;
-                    if (len > 1) len--; // último que coube
-                    lines.Add(t.Substring(start, len));
-                    start += len;
+                    current = word;
                 }
             }
 
-            if (sb.Length > 0)
-                lines.Add(sb.ToString().TrimEnd());
+            if (!string.IsNullOrEmpty(current))
+                lines.Add(current);
 
             return lines;
         }
@@ -933,20 +966,17 @@ namespace BingoCreator.Services
 
             if (rows.Count == 0) return;
 
-            // monta os elementos (na ordem) para cada cartela
             var cardElements = DataService.GetCardElementsBySet(rows);
 
-            // ⚠️ seus métodos PrintCards4x4/5x5 usam cards.Quantity para iterar.
-            // Ajustamos temporariamente para imprimir só o subset.
             int originalQty = cards.Quantity;
             cards.Quantity = cardElements.Count;
 
             if (cards.CardsSize == 5)
-                PrintCards5x5(cards, cardElements);  // já existente no seu projeto
+                PrintCards5x5(cards, cardElements);  
             else if (cards.CardsSize == 4)
-                PrintCards4x4(cards, cardElements);  // já existente no seu projeto
+                PrintCards4x4(cards, cardElements);  
 
-            cards.Quantity = originalQty; // restaura
+            cards.Quantity = originalQty;
         }
 
 

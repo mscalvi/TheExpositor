@@ -24,7 +24,7 @@ namespace BingoCreator.Services
             Hex("2E7E68"), // Border: linhas/bordas
             Hex("111111"), // Text
             Hex("111111"), // Accent: detalhes/ID
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Verdana", fontBody: "Verdana",
             eco: false,
             estilo: BackgroundStyle.Liso
         );
@@ -36,7 +36,7 @@ namespace BingoCreator.Services
             Hex("C04A7A"), // Border
             Hex("111111"), // Text
             Hex("111111"), // Accent
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Montserrat", fontBody: "Montserrat",
             eco: false,
             estilo: BackgroundStyle.Liso
         );
@@ -45,7 +45,7 @@ namespace BingoCreator.Services
             "BLACK", "Preto",
             Hex("F6F7F9"), Hex("E9ECEF"), Hex("4F4F4F"),
             Hex("000000"), Hex("111111"),
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Arial", fontBody: "Arial",
             eco: false,
             estilo: BackgroundStyle.Liso
         );
@@ -54,7 +54,7 @@ namespace BingoCreator.Services
             "BLUE", "Azul",
             Hex("EDF4FF"), Hex("D6E7FF"), Hex("3A7BD5"),
             Hex("111111"), Hex("111111"),
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Montserrat", fontBody: "Montserrat",
             eco: false,
             estilo: BackgroundStyle.Liso
         );
@@ -63,7 +63,7 @@ namespace BingoCreator.Services
             "ORANGE", "Laranja",
             Hex("FFF6E5"), Hex("FFE7BF"), Hex("7A5C4B"),
             Hex("111111"), Hex("111111"),
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Montserrat", fontBody: "Montserrat",
             eco: false,
             estilo: BackgroundStyle.Liso
         );
@@ -75,7 +75,7 @@ namespace BingoCreator.Services
             Hex("8E5E2A"), // Border (marrom suave, menos contrastado)
             Hex("111111"), // Text (preto)
             Hex("FFD5A6"), // Accent (laranja claro - usado no xadrez)
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Montserrat", fontBody: "Montserrat",
             eco: false, estilo: BackgroundStyle.Xadrez
         );
 
@@ -86,7 +86,7 @@ namespace BingoCreator.Services
             Hex("A86262"), // Border
             Hex("111111"), // Text
             Hex("FFC9CF"), // Accent
-            fontTitle: "Poppins", fontBody: "Nunito",
+            fontTitle: "Montserrat", fontBody: "Montserrat",
             eco: false, estilo: BackgroundStyle.Xadrez
         );
 
@@ -94,9 +94,9 @@ namespace BingoCreator.Services
         private static readonly IReadOnlyDictionary<string, Theme> _all =
             new Dictionary<string, Theme>(StringComparer.OrdinalIgnoreCase)
             {
+                ["BLACK"] = Black,
                 ["GREEN"] = Green,
                 ["PINK"] = Pink,
-                ["BLACK"] = Black,
                 ["BLUE"] = Blue,
                 ["ORANGE"] = Orange,
                 ["ORANGESTRIPS"] = OrangeStrips,
