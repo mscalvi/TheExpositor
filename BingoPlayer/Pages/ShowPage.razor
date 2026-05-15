@@ -24,7 +24,7 @@
         }
         else
         {
-            <div class="image-fallback"><span>Imagem não disponível</span></div>
+            <div class="image-fallback"><span>Deu problema! Por favor, avise o administrador!</span></div>
         }
     </section>
 </div>
@@ -67,7 +67,6 @@
 
     private string displayTitle = "Bingo";
     private string? imageSrc;
-    // rótulos visuais para 5×5 (vindos do GameHeader) — ex.: S O R T E
     private string[] FiveHeaders = new[] { "B", "I", "N", "G", "O" };
 
     private void BuildHeadersFor5x5()
@@ -113,7 +112,7 @@
     private void ApplyElement(int id)
     {
         var el = Package.Game?.AllElements.FirstOrDefault(x => x.Id == id);
-        var label = ColumnLabelFor(id); // null em 4×4
+        var label = ColumnLabelFor(id);
 
         if (el is null)
         {
@@ -123,10 +122,9 @@
         }
 
         displayTitle = label is null
-            ? el.CardName                       // 4×4 (sem coluna)
-            : $"Coluna {label} - {el.CardName}"; // 5×5 (com coluna)
+            ? el.CardName                           // 4×4 (sem coluna)
+            : $"Coluna {label} - {el.CardName}";    // 5×5 (com coluna)
 
         imageSrc = BingoPlayer.Services.PackageService.ResolveImageUrl(el.ImageName);
     }
-
 }

@@ -1,7 +1,7 @@
 ﻿
 /* Grade com áreas nomeadas: título em cima, imagem embaixo preenchendo tudo */
 .stage-grid {
-    min-height: 100dvh;
+    height: 100dvh;
     display: grid;
     grid-template-rows: auto 1fr;
     grid-template-areas:
@@ -9,9 +9,10 @@
         "logo";
     background: #eaf3ff;
     color: #142936;
+    overflow: hidden;
 }
 
-/* Área do título (equivalente ao Label dock=Top do WinForms) */
+/* Área do Título */
 .stage-title {
     grid-area: title;
     display: grid;
@@ -19,8 +20,9 @@
     gap: 10px;
     align-items: center;
     grid-template-areas: "image name";
-    grid-template-columns: 15% 70%;
-    margin-block: 0;
+    grid-template-columns: auto 1fr;
+    padding: 8px 16px;
+    box-sizing: border-box;
 }
 
 .brand-logo {
@@ -33,21 +35,27 @@
 
 .title-image {
     grid-area: image;
-    justify-self: center;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
 }
 .title-name {
     grid-area: name;
-    justify-self: center;
-    text-align: center;
-    height: clamp(72px,10vh,128px);
+    width: 100%;
+    min-height: 72px;
     padding: 12px 16px;
     font-family: system-ui,"Segoe UI",Roboto,Arial,sans-serif;
     font-weight: 800;
-    font-size: clamp(28px,5vw,52px);
-    letter-spacing: .3px;
+    font-size: clamp(18px, 3vw, 52px);
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
 
 /* Área da image ocupa todo o restante (dock=Fill) */
@@ -56,15 +64,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px 16px;
+    width: 100%;
     height: 100%;
+    padding: 0 24px 24px;
+    box-sizing: border-box;
     overflow: hidden;
 }
 
 /* Imagem ajusta proporcionalmente (equivalente a PictureBox Zoom) */
 .stage-image {
-    width: 100%;
-    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
 }
 

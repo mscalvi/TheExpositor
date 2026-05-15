@@ -64,7 +64,12 @@
                         <button class="btn" @onclick="StartGame" disabled="@started">Começar</button>
                         <button class="btn" @onclick="ResetGame" disabled="@(!started && string.IsNullOrEmpty(lastResult))">Reiniciar</button>
                         <button class="btn" @onclick="ShowBingo" disabled="@(!started && string.IsNullOrEmpty(lastResult))">Bingo</button>
-                        <button class="btn" @onclick="OpenStage">Ligar Projetor</button>
+                        <a class="btn"
+                           href="stage"
+                           target="_blank"
+                           rel="noopener noreferrer">
+                            Ligar Projetor
+                        </a>
                     </section>
                 </div>
             </section>
